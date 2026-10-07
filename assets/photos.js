@@ -20,8 +20,11 @@
         <button type="button" class="button button-primary" id="crop-confirm">Ajouter la photo</button>`;
     document.body.append(dialog);
     const query = selector => dialog.querySelector(selector);
+    const photoBlock = section => document.querySelector(`[data-photo-section="${section}"]`)
+        || document.querySelector(`[data-section-panel="${section}"] .photo-block`);
     function changed(section) {
-        document.querySelector('#report-form')?.dispatchEvent(new CustomEvent('fox-section-edit', {detail:{sections:[Number(section)]}}));
+        const panel=photoBlock(section)?.closest('[data-section-panel]');
+        document.querySelector('#report-form')?.dispatchEvent(new CustomEvent('fox-section-edit', {detail:{sections:[Number(panel?.dataset.sectionPanel || section)]}}));
     }
     function jpegBlob(canvas, quality) {
         const data = canvas.toDataURL('image/jpeg', quality);
@@ -158,7 +161,7 @@
             if(!navigator.onLine || document.body.dataset.localSnapshot==='true'){
                 document.querySelectorAll('.photo-grid').forEach(grid=>grid.replaceChildren());
                 savedPhotos.forEach(photo=>{
-                    const block=document.querySelector(`[data-section-panel="${photo.section}"] .photo-block`);
+                    const block=photoBlock(photo.section);
                     if(!block)return;
                     let grid=block.querySelector('.photo-grid');
                     if(!grid){grid=document.createElement('div');grid.className='photo-grid';block.append(grid);}
@@ -172,7 +175,7 @@
         acknowledge:sent=>{
             sent.forEach(photo=>{
                 if(!savedPhotos.some(saved=>saved.id===photo.id))savedPhotos.push(photo);
-                const block=document.querySelector(`[data-section-panel="${photo.section}"] .photo-block`);
+                const block=photoBlock(photo.section);
                 let grid=block?.querySelector('.photo-grid');
                 if(block&&!grid){grid=document.createElement('div');grid.className='photo-grid';block.append(grid);}
                 if(grid){
@@ -189,7 +192,7 @@
             if(!response.ok)throw new Error('Photo existante indisponible pour la reprise hors connexion.');
             const blob=await response.blob();
             if(!['image/jpeg','image/png','image/webp'].includes(blob.type)) throw new Error('Réponse photo invalide : copie hors connexion non enregistrée.');
-            const section=Number(img.closest('[data-section-panel]').dataset.sectionPanel);
+            const section=Number(img.closest('[data-photo-section]')?.dataset.photoSection || img.closest('[data-section-panel]').dataset.sectionPanel);
             const photo={id:img.getAttribute('src'),section,format:img.dataset.photoFormat || 'original',caption:img.closest('figure').querySelector('figcaption').textContent,blob};
             savedPhotos=savedPhotos.filter(saved=>saved.id!==photo.id);
             savedPhotos.push(photo);

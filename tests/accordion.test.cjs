@@ -65,4 +65,18 @@ test('Stacked accordions explicitly complete empty sections, retain data and res
     assert.equal(completed.value,'[3]','Later field edit invalidates only its section');
     handlers['fox-section-edit']({detail:{sections:[3,6]}});
     assert.equal(completed.value,'[]','Photo/programmatic edits invalidate validation');
+    const site={...accordions[0],dataset:{sectionAccordion:'12'},open:false};
+    accordions.splice(1,0,site);
+    // Reload with the actual new DOM order while retaining legacy section identities.
+    vm.runInNewContext(fs.readFileSync('assets/app.js','utf8'),context);
+    active.value='1';handlers['fox-sections-restored']();
+    handlers.next();
+    assert.equal(active.value,'12','Next opens SITE immediately after Informations');
+    handlers.next();
+    assert.equal(active.value,'2','Next from SITE preserves the existing Evaluation identity');
+    handlers.previous();
+    assert.equal(active.value,'12');
+    completed.value='[1,12]';
+    handlers['fox-section-edit']({detail:{sections:[12]}});
+    assert.equal(completed.value,'[1]','Editing SITE leaves Informations complete');
 });

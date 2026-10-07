@@ -441,7 +441,7 @@ function saveReport(PDO $pdo, int $reportId, array $data, array $devices, array 
 
 $errors = [];
 $reportId = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
-$activeSection = filter_input(INPUT_GET, 'section', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 11]]);
+$activeSection = filter_input(INPUT_GET, 'section', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 12]]);
 $activeSection = $activeSection ?: 1;
 $report = null;
 $devices = [];
@@ -536,7 +536,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         } elseif ($action === 'save') {
             $id = filter_input(INPUT_POST, 'report_id', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
-            $sectionInput = filter_input(INPUT_POST, 'active_section', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 11]]);
+            $sectionInput = filter_input(INPUT_POST, 'active_section', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 12]]);
             $activeSection = $sectionInput ?: 1;
             if (!$id) {
                 $errors[] = 'Le rapport à enregistrer est invalide.';
@@ -702,7 +702,8 @@ function sectionStart(int $number, array $data, int $activeSection): void
 {
     $done = in_array($number, $GLOBALS['completedSectionState'], true);
     echo '<details class="report-accordion' . ($done ? ' is-complete' : '') . '" data-section-accordion="' . $number . '"' . ($number === $activeSection && !$done ? ' open' : '') . '>';
-    echo '<summary id="section-heading-' . $number . '"><span class="accordion-number">' . sprintf('%02d', $number) . '</span><span>' . h($GLOBALS['sections'][$number]) . '</span><span class="section-state">' . ($done ? '✓ Terminée' : 'À compléter') . '</span></summary>';
+    $position = array_search($number, array_keys($GLOBALS['sections']), true) + 1;
+    echo '<summary id="section-heading-' . $number . '"><span class="accordion-number">' . sprintf('%02d', $position) . '</span><span>' . h($GLOBALS['sections'][$number]) . '</span><span class="section-state">' . ($done ? '✓ Terminée' : 'À compléter') . '</span></summary>';
     echo '<section class="form-section" id="section-' . $number . '" data-section-panel="' . $number . '" aria-labelledby="section-heading-' . $number . '">';
 }
 
@@ -762,7 +763,7 @@ function statusSelect(array $data, string $name, string $label): void
 
 function photoBlock(int $section, array $photosBySection, bool $editable): void
 {
-    echo '<div class="photo-block"><div><h3>Photos de cette section</h3><p>JPEG, PNG ou WebP · 8 Mo maximum · Réduction automatique en JPEG à l’enregistrement (1 600 px, 1 Mo maximum).</p></div>';
+    echo '<div class="photo-block" data-photo-section="' . $section . '"><div><h3>Photos de cette section</h3><p>JPEG, PNG ou WebP · 8 Mo maximum · Réduction automatique en JPEG à l’enregistrement (1 600 px, 1 Mo maximum).</p></div>';
     if ($editable) {
         echo '<label class="upload-control">Galerie<input type="file" name="photos_' . $section . '[]" accept="image/jpeg,image/png,image/webp" multiple data-photo-input="' . $section . '"></label> <label class="upload-control">Prendre une photo<input type="file" accept="image/*" capture="environment" data-photo-input="' . $section . '"></label><div class="photo-caption-fields" data-caption-fields="' . $section . '"></div>';
     }
@@ -921,7 +922,7 @@ try {
             <input type="hidden" name="completed_sections" value="<?= h(json_encode($completedSectionState, JSON_THROW_ON_ERROR)) ?>" id="completed-sections">
             <div class="step-controls">
                 <button type="button" class="button button-secondary" id="previous-step">Précédent</button>
-                <span id="step-progress" class="sr-only" aria-live="polite">Étape <?= $activeSection ?>/11</span>
+                <span id="step-progress" class="sr-only" aria-live="polite">Étape <?= array_search($activeSection, array_keys($sections), true) + 1 ?>/<?= count($sections) ?></span>
                 <button type="button" class="button button-primary" id="next-step">Suivant</button>
             </div>
             <div id="sync-conflict" class="alert alert-error" hidden>
@@ -947,6 +948,9 @@ try {
                         <?php inputField($formData, 'author', 'Rédacteur'); ?>
                         <?php inputField($formData, 'intervention_id', 'Identifiant intervention'); ?>
                     </div>
+                <?php sectionEnd(1, $isEditable); ?>
+                <?php sectionStart(12, $formData, $activeSection); ?>
+                    <div class="section-title"><div><h2>SITE</h2></div></div>
                     <div class="location-block">
                         <h3>Localisation de l’intervention</h3>
                         <div class="form-grid">
@@ -961,7 +965,7 @@ try {
                         <img id="location-map" class="location-map" alt="Localisation de l’intervention, carte Google" hidden>
                     </div>
                     <?php photoBlock(1, $photosBySection, $isEditable); ?>
-                <?php sectionEnd(1, $isEditable); ?>
+                <?php sectionEnd(12, $isEditable); ?>
 
                 <?php sectionStart(2, $formData, $activeSection); ?>
                     <div class="section-title"><span class="section-index">02</span><div><p class="eyebrow">RETOUR D’EXPÉRIENCE</p><h2>Évaluation</h2><p>Notez les conditions et la qualité de l’intervention.</p></div></div>

@@ -14,6 +14,7 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
 {
     global $sections, $deviceCategories, $trainingTopics;
     $fields = [
+        12 => [],
         1 => [
             'establishment' => 'Établissement', 'address' => 'Adresse', 'report_date' => 'Date',
             'contact_name' => 'Contact', 'contact_phone' => 'Téléphone', 'contact_email' => 'E-mail',
@@ -87,7 +88,8 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
                 . ($report === [] ? 'MODÈLE VIDE · Prévisualisation de la mise en page' : (($report['status'] ?? 'draft') === 'finalized' ? 'FINALISÉ' : 'BROUILLON'))
                 . ' · ' . pdfEscape((string) ($report['establishment'] ?? 'Installation et formation Lightspeed')) . '</p>';
         }
-        $html .= '<h2>' . sprintf('%02d', $number) . ' · ' . pdfEscape($label) . '</h2><table class="fields">';
+        $position = array_search($number, array_keys($sections), true) + 1;
+        $html .= '<h2>' . sprintf('%02d', $position) . ' · ' . pdfEscape($label) . '</h2><table class="fields">';
         foreach ($fields[$number] as $key => $fieldLabel) {
             if (str_ends_with($key, '_notes') || str_ends_with($key, '_comment') || $key === 'conclusion') {
                 continue;
@@ -102,7 +104,7 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
                 . ((string) $value !== '' ? nl2br(pdfEscape((string) $value)) : '<span class="placeholder">À renseigner</span>') . '</td></tr>';
         }
         $html .= '</table>';
-        if ($number === 1 && ($report['latitude'] ?? null) !== null && ($report['longitude'] ?? null) !== null) {
+        if ($number === 12 && ($report['latitude'] ?? null) !== null && ($report['longitude'] ?? null) !== null) {
             $html .= '<div class="location"><h3>Localisation de l’intervention</h3><p>'
                 . pdfEscape((string) $report['latitude']) . ', ' . pdfEscape((string) $report['longitude'])
                 . ' · Zoom ' . pdfEscape((string) ($report['map_zoom'] ?? 15)) . '</p>';
@@ -157,9 +159,9 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
             $html .= '<h3>' . pdfEscape($fieldLabel) . '</h3><div class="notes">'
                 . ($text !== '' ? pdfEscape($text) : '<span class="placeholder">À compléter</span>') . '</div>';
         }
-        $html .= '<h3>Photos et légendes</h3>';
-        $matchingPhotos = array_filter($photos, static fn(array $photo): bool => (int) $photo['section_number'] === $number);
-        if ($matchingPhotos === []) {
+        if ($number !== 1) $html .= '<h3>Photos et légendes</h3>';
+        $matchingPhotos = $number === 1 ? [] : array_filter($photos, static fn(array $photo): bool => (int) $photo['section_number'] === ($number === 12 ? 1 : $number));
+        if ($number !== 1 && $matchingPhotos === []) {
             $html .= '<div class="notes placeholder">Aucune photo ajoutée à cette section.</div>';
         }
         foreach ($matchingPhotos as $photo) {

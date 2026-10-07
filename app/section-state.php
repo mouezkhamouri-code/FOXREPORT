@@ -12,11 +12,11 @@ function completedSections(mixed $value): array
     } catch (JsonException $exception) {
         throw new RuntimeException('Les états des sections sont illisibles.', 0, $exception);
     }
-    if (!is_array($sections) || !array_is_list($sections) || count($sections) > 11) {
+    if (!is_array($sections) || !array_is_list($sections) || count($sections) > 12) {
         throw new RuntimeException('Les états des sections sont invalides.');
     }
     foreach ($sections as $number) {
-        if (!is_int($number) || $number < 1 || $number > 11) {
+        if (!is_int($number) || $number < 1 || $number > 12) {
             throw new RuntimeException('Une section terminée est invalide.');
         }
     }

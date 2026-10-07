@@ -103,7 +103,13 @@ test('Real report save and sync persist section validation, preserve legacy stat
         assert.match(initial,/<label class="field field-floating"><input placeholder=" " type="text" name="establishment"[^>]*><span class="field-title">Établissement<\/span>/);
         assert.match(initial,/<label class="field field-floating field-native"><input placeholder=" " type="date"/);
         assert.match(initial,/<textarea placeholder=" " name="context_notes"/);
-        assert.equal((initial.match(/data-section-accordion=/g)||[]).length,11);
+        assert.equal((initial.match(/data-section-accordion=/g)||[]).length,12);
+        const information=initial.match(/data-section-accordion="1"([\s\S]*?)<\/details>/)[1];
+        const site=initial.match(/data-section-accordion="12"([\s\S]*?)<\/details>/)[1];
+        assert.doesNotMatch(information,/location-block|photo-block/);
+        assert.match(site,/location-block/);
+        assert.match(site,/data-photo-section="1"/);
+        assert.match(site,/data-complete-section="12"/);
         assert.match(initial,/name="completed_sections" value="\[\]"/);
         const save=async(revision,states,extra={})=>{
             const data={action:'save',csrf_token:'synthetic-csrf',report_id:String(report.id),revision:String(revision),active_section:'6',save_status:'draft',request_id:randomUUID(),...extra};
@@ -128,14 +134,15 @@ test('Real report save and sync persist section validation, preserve legacy stat
         assert.match(conflictBody.error,/version locale 1, serveur 2/);
         assert.match(logs,/FoxReport revision conflict; report \d+; local 1; server 2/);
         assert.match(await getPage(),/name="completed_sections" value="\[6\]"/);
-        const invalid=await save(2,'[12]');
+        const invalid=await save(2,'[13]');
         assert.equal(invalid.status,422);
         const legacy=await save(2,undefined);
         assert.equal(legacy.status,200,await legacy.clone().text());
         assert.match(await getPage(),/name="completed_sections" value="\[6\]"/,'Old clients preserve state');
-        const unmark=await save(3,'[]');
+        const unmark=await save(3,'[12]');
         assert.equal(unmark.status,200);
-        assert.match(await getPage(),/name="completed_sections" value="\[\]"/);
+        assert.match(await getPage(),/name="completed_sections" value="\[12\]"/);
+        assert.match(await getPage(),/report-accordion is-complete" data-section-accordion="12"/);
         const missingRevision=await save('', '[]');
         assert.equal(missingRevision.status,409);
         assert.match((await missingRevision.json()).error,/Version du rapport manquante/);

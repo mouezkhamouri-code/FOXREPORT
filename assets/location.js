@@ -5,7 +5,7 @@
     if(!zoom.value)zoom.value='15';
     const message=document.querySelector('#location-message'),image=document.querySelector('#location-map');
     let lastKey='',objectUrl='',pending=false,requestSequence=0;
-    function changed(){form.dispatchEvent(new CustomEvent('fox-section-edit',{detail:{sections:[1]}}));}
+    function changed(){form.dispatchEvent(new CustomEvent('fox-section-edit',{detail:{sections:[12]}}));}
     async function refresh(){
         const lat=Number(latitude.value),lng=Number(longitude.value);
         if(latitude.value.trim()===''||longitude.value.trim()===''||!Number.isFinite(lat)||!Number.isFinite(lng)||Math.abs(lat)>90||Math.abs(lng)>180){

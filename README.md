@@ -18,6 +18,8 @@ Les photos sont stockées dans `storage/photos/`, qui refuse les accès directs 
 
 ## Fonctionnalités de cette étape
 
+Informations s'arrête avant la localisation. L'accordéon SITE immédiatement suivant contient la localisation et les anciennes photos d'Informations, avec validation indépendante. Les 12 accordéons suivent cet ordre également en navigation et en PDF (modèle vide : 12 pages). SITE utilise l'identifiant de validation 12 ; les identifiants 1 à 11 et les photos enregistrées en section 1 restent inchangés pour préserver les rapports et brouillons existants. Aucun déplacement SQL de photos ni nouvelle migration n'est nécessaire. Une ancienne validation Informations reste Informations ; SITE doit être validé explicitement.
+
 La liste présente directement les cartes, sans en-tête Archive, compteur de rapports ni paragraphe explicatif sous les cartes. Le calcul de remplissage reste inchangé.
 
 Les cartes affichent aussi, sous le nom, l'adresse cliquable vers Maps et un bouton Waze, puis le nom/prénom du responsable (champ Contact) en orange foncé et son téléphone cliquable. Les champs vides sont omis ; ces liens n'ouvrent pas l'éditeur. Ces informations ajoutent des lignes aux cartes pour permettre un accès rapide, sans changer l'en-tête de l'éditeur ni les espacements.

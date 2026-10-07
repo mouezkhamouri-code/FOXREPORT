@@ -118,13 +118,14 @@ try {
 
     $html = reportPdfHtml([], [], []);
     foreach ($sections as $number => $label) {
-        check(str_contains($html, sprintf('%02d', $number) . ' · ' . pdfEscape($label)), 'Blank PDF includes section ' . $number);
+        $position = array_search($number, array_keys($sections), true) + 1;
+        check(str_contains($html, sprintf('%02d', $position) . ' · ' . pdfEscape($label)), 'Blank PDF includes section ' . $number);
     }
-    check(substr_count($html, 'Aucune photo ajoutée') === 11, 'Blank photos placeholders in all sections');
+    check(substr_count($html, 'Aucune photo ajoutée') === 11, 'Photos moved from Informations to SITE without duplication');
     $pdf = renderReportPdf([], [], []);
     $pdfBytes = $pdf->output();
     check(str_starts_with($pdfBytes, '%PDF-'), 'Actual PDF output');
-    check($pdf->getCanvas()->get_page_count() === 11, 'Blank model has exactly 11 A4 pages');
+    check($pdf->getCanvas()->get_page_count() === 12, 'Blank model has exactly 12 A4 pages');
     check(abs($pdf->getCanvas()->get_width() - 595.28) < 1, 'A4 portrait width');
     unset($pdf);
 

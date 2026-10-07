@@ -9,6 +9,11 @@
     const activeSectionField = document.querySelector('#active-section');
     const requestedSection = Number(activeSectionField?.value || 1);
     const accordions = Array.from(document.querySelectorAll('[data-section-accordion]'));
+    const sectionOrder = (accordions.length ? accordions : panels).map(panel=>Number(panel.dataset.sectionAccordion || panel.dataset.sectionPanel));
+    accordions.forEach((accordion,index)=>{
+        const number=accordion.querySelector('.section-index');
+        if (number) number.textContent=String(index+1).padStart(2,'0');
+    });
     const completedField = form.elements.completed_sections;
     function invalidateSections(numbers) {
         if (!completedField) return;
@@ -46,11 +51,11 @@
             }
         });
         const progress = document.querySelector('#step-progress');
-        if (progress) progress.textContent = `Section ${activeSectionField.value}/11 · ${completed.length}/11 terminées`;
+        if (progress) progress.textContent = `Section ${sectionOrder.indexOf(Number(activeSectionField.value))+1}/${sectionOrder.length} · ${completed.length}/${sectionOrder.length} terminées`;
     }
 
     function showSection(sectionNumber) {
-        const section = Math.min(11, Math.max(1, Number(sectionNumber) || 1));
+        const section = sectionOrder.includes(Number(sectionNumber)) ? Number(sectionNumber) : sectionOrder[0];
         if (accordions.length) {
             accordions.forEach(accordion => { accordion.open = Number(accordion.dataset.sectionAccordion) === section; });
         } else {
@@ -67,10 +72,10 @@
         if (activeSectionField) activeSectionField.value = String(section);
         const previous = document.querySelector('#previous-step');
         const next = document.querySelector('#next-step');
-        if (previous) previous.disabled = section === 1;
-        if (next) next.disabled = section === 11;
+        if (previous) previous.disabled = section === sectionOrder[0];
+        if (next) next.disabled = section === sectionOrder[sectionOrder.length-1];
         const progress = document.querySelector('#step-progress');
-        if (progress) progress.textContent = `Étape ${section}/11 · ${tabs[section - 1]?.textContent.trim() || ''}`;
+        if (progress) progress.textContent = `Étape ${sectionOrder.indexOf(section)+1}/${sectionOrder.length}`;
         updateSectionStates();
     }
 
@@ -79,8 +84,8 @@
             if (!accordion.open) return;
             activeSectionField.value = accordion.dataset.sectionAccordion;
             const section = Number(activeSectionField.value);
-            document.querySelector('#previous-step').disabled = section === 1;
-            document.querySelector('#next-step').disabled = section === 11;
+            document.querySelector('#previous-step').disabled = section === sectionOrder[0];
+            document.querySelector('#next-step').disabled = section === sectionOrder[sectionOrder.length-1];
             updateSectionStates();
             form.dispatchEvent(new Event('fox-change'));
         });
@@ -117,11 +122,11 @@
         if (accordion) accordion.open = false;
     }
     document.querySelector('#previous-step')?.addEventListener('click', () => {
-        showSection(Number(activeSectionField.value) - 1);
+        showSection(sectionOrder[Math.max(0,sectionOrder.indexOf(Number(activeSectionField.value))-1)]);
         form.dispatchEvent(new Event('fox-change'));
     });
     document.querySelector('#next-step')?.addEventListener('click', () => {
-        showSection(Number(activeSectionField.value) + 1);
+        showSection(sectionOrder[Math.min(sectionOrder.length-1,sectionOrder.indexOf(Number(activeSectionField.value))+1)]);
         form.dispatchEvent(new Event('fox-change'));
     });
 
