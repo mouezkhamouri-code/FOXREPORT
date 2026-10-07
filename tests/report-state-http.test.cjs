@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const net = require('node:net');
-const {spawn} = require('node:child_process');
+const {spawn, execFileSync} = require('node:child_process');
 const {randomUUID} = require('node:crypto');
 
 test('Real report save and sync persist section validation, preserve legacy state and reject conflicts', async () => {
@@ -22,11 +22,12 @@ test('Real report save and sync persist section validation, preserve legacy stat
         fs.mkdirSync(path.join(directory,'SERVEUR'));
         fs.copyFileSync(path.join(root,'index.php'),path.join(directory,'index.php'));
         fs.copyFileSync(path.join(root,'salespeople.php'),path.join(directory,'salespeople.php'));
+        fs.copyFileSync(path.join(root,'photo.php'),path.join(directory,'photo.php'));
         if(process.env.FOXREPORT_KEEP_FIXTURE==='1') {
             fs.cpSync(path.join(root,'assets'),path.join(directory,'assets'),{recursive:true});
             for(const name of ['offline.html','sw.js','manifest.webmanifest','version.json','photo.php'])fs.copyFileSync(path.join(root,name),path.join(directory,name));
         }
-        for(const name of ['report-definition.php','images.php','completion.php','sync.php','maps.php','report-list.php','report-delete.php','section-state.php','salespeople.php','version.php','build-version.php']) {
+        for(const name of ['report-definition.php','images.php','completion.php','sync.php','maps.php','report-list.php','report-delete.php','section-state.php','salespeople.php','photo-state.php','version.php','build-version.php']) {
             fs.copyFileSync(path.join(root,'app',name),path.join(directory,'app',name));
         }
         fs.writeFileSync(path.join(directory,'app','auth.php'),`<?php
@@ -46,6 +47,8 @@ test('Real report save and sync persist section validation, preserve legacy stat
                 else if(name==='revision') columns.push('revision INTEGER DEFAULT 1');
                 else if(name==='intervention_uid') columns.push('intervention_uid TEXT UNIQUE');
                 else if(name==='status') columns.push("status TEXT DEFAULT 'draft'");
+                else if(name==='deleted_at' || name==='client_uid') columns.push(`${name} TEXT DEFAULT NULL`);
+                else if(name==='sort_order') columns.push('sort_order INTEGER DEFAULT 0');
                 else columns.push(`${name} TEXT DEFAULT ''`);
             }
             statements.push(`CREATE TABLE IF NOT EXISTS ${match[1]} (${columns.join(',')})`);
@@ -68,7 +71,7 @@ test('Real report save and sync persist section validation, preserve legacy stat
             $pdo=new FixturePDO('sqlite:'.__DIR__.'/../fixture.sqlite');
             $pdo->setAttribute(PDO::ATTR_ERRMODE,PDO::ERRMODE_EXCEPTION);
             ${schemaPhp}`);
-        child=spawn('php',['-d','extension=php_pdo_sqlite.dll','-d','extension=php_fileinfo.dll','-S',`127.0.0.1:${port}`,'-t',directory],{stdio:['ignore','pipe','pipe']});
+        child=spawn('php',['-d','extension=php_pdo_sqlite.dll','-d','extension=php_fileinfo.dll','-d','extension=php_gd.dll','-d','extension=php_exif.dll','-S',`127.0.0.1:${port}`,'-t',directory],{stdio:['ignore','pipe','pipe']});
         child.stdout.on('data',data=>{logs+=data;});
         child.stderr.on('data',data=>{logs+=data;});
         const base=`http://127.0.0.1:${port}/index.php`;
@@ -104,6 +107,51 @@ test('Real report save and sync persist section validation, preserve legacy stat
         const localFirst=await createLocal(),localRetry=await createLocal();
         assert.equal(localFirst.id,localRetry.id,'Local UUID prevents duplicate creation');
         const template=await fetch(base+'?api=template');
+        let photoRevision=1;
+        let uploadedPhotos=[];
+        for(const [width,height,expected] of [[1600,900,200],[1600,1200,200],[1600,1000,422]]) {
+            const jpeg=execFileSync('php',['-d','extension=php_gd.dll','-r',`$image=imagecreatetruecolor(${width},${height}); imagejpeg($image);`]);
+            const body=new FormData();
+            for(const [key,value] of Object.entries({action:'save',csrf_token:'synthetic-csrf',report_id:String(localFirst.id),revision:String(photoRevision),request_id:randomUUID(),save_status:'draft'})) body.set(key,value);
+            body.append('photos_1[]',new Blob([jpeg],{type:'image/jpeg'}),'synthetic.jpg');
+            body.append('formats_1[]','landscape');
+            const response=await fetch(base+`?api=save&id=${localFirst.id}`,{method:'POST',body});
+            assert.equal(response.status,expected,await response.clone().text());
+            if(expected===200) {
+                const result=await response.json();photoRevision=result.revision;uploadedPhotos=result.photos;
+            }
+        }
+        const photoKeys=uploadedPhotos.map(photo=>photo.client_uid || `photo.php?id=${photo.id}`);
+        const managePhotos=(revision,order,deleted,extra={})=>fetch(base+`?api=save&id=${localFirst.id}`,{
+            method:'POST',body:new URLSearchParams({action:'save',csrf_token:'synthetic-csrf',report_id:String(localFirst.id),revision:String(revision),
+                request_id:randomUUID(),save_status:'draft',photo_order:JSON.stringify(order),photo_deleted:JSON.stringify(deleted),...extra}),
+        });
+        const reversed=[...photoKeys].reverse();
+        const moved=await managePhotos(photoRevision,reversed,[]);
+        assert.equal(moved.status,200,await moved.clone().text());
+        const movedResult=await moved.json();photoRevision=movedResult.revision;
+        assert.deepEqual(movedResult.photos.map(photo=>`photo.php?id=${photo.id}`),reversed);
+        const deleteRequest=randomUUID();
+        const deletedPhoto=await managePhotos(photoRevision,reversed.slice(1),[reversed[0]],{request_id:deleteRequest});
+        assert.equal(deletedPhoto.status,200,await deletedPhoto.clone().text());
+        const deleteResult=await deletedPhoto.json();assert.equal(deleteResult.photos.length,1);
+        const deleteRetry=await managePhotos(photoRevision,reversed.slice(1),[reversed[0]],{request_id:deleteRequest});
+        assert.equal(deleteRetry.status,200);
+        assert.equal((await deleteRetry.json()).revision,deleteResult.revision);
+        photoRevision=deleteResult.revision;
+        assert.equal((await fetch(base.replace('/index.php','/'+reversed[0]))).status,404);
+        const crossReport=await fetch(base+`?api=save&id=${report.id}`,{method:'POST',body:new URLSearchParams({
+            action:'save',csrf_token:'synthetic-csrf',report_id:String(report.id),revision:'1',request_id:randomUUID(),
+            photo_deleted:JSON.stringify([reversed[1]]),
+        })});
+        assert.equal(crossReport.status,422);
+        const badOrder=await managePhotos(photoRevision,[reversed[1],reversed[1]],[]);
+        assert.equal(badOrder.status,422);
+        const missingPhoto=await managePhotos(photoRevision,['photo.php?id=999999'],[]);
+        assert.equal(missingPhoto.status,422);
+        const repeatedDelete=await managePhotos(photoRevision,reversed.slice(1),[reversed[0]]);
+        assert.equal(repeatedDelete.status,200,await repeatedDelete.clone().text());
+        assert.equal((await repeatedDelete.json()).photos.length,1);
         assert.equal(template.status,200,await template.clone().text());
         const templateHtml=(await template.json()).html;
         assert.match(templateHtml,/data-section-accordion="11"/);
@@ -111,6 +159,7 @@ test('Real report save and sync persist section validation, preserve legacy stat
         assert.match(templateHtml,/<option value="1">Example Alice<\/option>/);
         assert.doesNotMatch(templateHtml,/alice@example.com|0600000000/);
         assert.match(templateHtml,/INFORMATIONS COMMERCIALES/);
+        assert.doesNotMatch(templateHtml,/class="section-title"|LE LIEU &amp; LES RÉFÉRENCES|Les repères essentiels/);
         const commercial=templateHtml.match(/data-section-panel="1"[\s\S]*?data-section-panel="12"/)[0];
         const commercialOrder=['establishment','address','contact_name','contact_phone','sales_rep_id','order_reference','gallery_url','intervention_id','report-day-number','author','report_date','contact_email','customer_id','order_date'];
         let lastPosition=-1;

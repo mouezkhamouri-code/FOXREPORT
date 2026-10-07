@@ -43,7 +43,7 @@ if (isset($_GET['id'])) {
         $query = $pdo->prepare('SELECT * FROM foxreport_devices WHERE report_id = ? ORDER BY id');
         $query->execute([$id]);
         $devices = $query->fetchAll();
-        $query = $pdo->prepare('SELECT * FROM foxreport_photos WHERE report_id = ? ORDER BY section_number, id');
+        $query = $pdo->prepare('SELECT * FROM foxreport_photos WHERE report_id = ? AND deleted_at IS NULL ORDER BY section_number, sort_order, id');
         $query->execute([$id]);
         $photos = $query->fetchAll();
     } catch (PDOException $exception) {

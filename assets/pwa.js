@@ -92,6 +92,7 @@
     const pageHtml='<!doctype html>'+document.documentElement.outerHTML;
     const entriesFromForm=()=>[...new FormData(form).entries()].filter(([name,value])=>
         !name.startsWith('photos_') && !name.startsWith('captions_') && !name.startsWith('formats_')
+        && !name.startsWith('photo_uids_')
         && name!=='csrf_token' && !(value instanceof File));
     async function persist(dirty=true) {
         saving=saving.then(async()=>{
@@ -126,7 +127,8 @@
                     }
                     if (!contentChanged && current && (current.version || 0)!==previousVersion) return current;
                     const revision=current?.revision || candidate.revision;
-                    const retained=(current?.savedPhotos||[]).filter(photo=>!photoCacheReady || !refreshedPhotoIds.has(photo.id));
+                    const deleted=new Set(JSON.parse(candidate.entries.find(([name])=>name==='photo_deleted')?.[1] || '[]'));
+                    const retained=(current?.savedPhotos||[]).filter(photo=>!deleted.has(photo.id) && (!photoCacheReady || !refreshedPhotoIds.has(photo.id)));
                     const saved=new Map([...(candidate.savedPhotos||[]),...retained].map(photo=>[photo.id,photo]));
                     return {
                         ...candidate,revision,operation:current?.operation,dirty:contentChanged || current?.dirty || false,

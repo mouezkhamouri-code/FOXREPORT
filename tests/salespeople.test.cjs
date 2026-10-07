@@ -4,6 +4,45 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const {execFileSync} = require('node:child_process');
 
+test('Landscape crop produces a 1600 by 900 JPEG with adjustable position and zoom', async () => {
+    const controls = {};
+    for (const id of ['crop-format','crop-zoom','crop-x','crop-y','crop-caption','crop-error','crop-rotate','crop-cancel','crop-confirm','crop-preview']) controls[`#${id}`]={value:id==='crop-format'?'landscape':''};
+    const drawing = {translate:()=>{},rotate:()=>{},drawImage:()=>{},fillRect:()=>{}};
+    controls['#crop-preview'].getContext=()=>drawing;
+    let resultSize;
+    let opened;
+    const dialog={querySelector:selector=>controls[selector],close:()=>{},showModal:()=>{opened();}};
+    const handlers={};
+    const input={dataset:{photoInput:'1'},files:[{type:'image/jpeg',size:1000}],addEventListener:(name,handler)=>{handlers[name]=handler;}};
+    const context={
+        document:{
+            createElement:type=>type==='dialog'?dialog:{
+                getContext:()=>drawing,
+                toDataURL(){resultSize=[this.width,this.height];return 'data:image/jpeg;base64,YQ==';},
+            },
+            body:{append:()=>{}},
+            querySelector:()=>null,
+            querySelectorAll:selector=>selector==='[data-photo-input]'?[input]:[],
+        },
+        window:{},navigator:{onLine:false},
+        createImageBitmap:async()=>({width:2400,height:1800,close:()=>{}}),
+        crypto:{randomUUID:()=> 'synthetic-photo'}, Blob, Uint8Array, atob,
+        alert:message=>{throw new Error(message);},
+    };
+    const ready=new Promise(resolve=>{opened=resolve;});
+    vm.runInNewContext(fs.readFileSync('assets/photos.js','utf8'),context);
+    handlers.change();
+    await ready;
+    assert.equal(controls['#crop-format'].value,'landscape');
+    assert.equal(controls['#crop-format'].disabled,true);
+    controls['#crop-x'].value='.8';controls['#crop-x'].oninput();
+    controls['#crop-zoom'].value='1.2';controls['#crop-zoom'].oninput();
+    await controls['#crop-confirm'].onclick();
+    await context.window.FoxPhotos.whenReady();
+    assert.deepEqual(resultSize,[1600,900]);
+    assert.equal(context.window.FoxPhotos.get()[0].format,'landscape');
+});
+
 test('SITE rejects portrait and square images in the browser before opening the crop dialog', async () => {
     const handlers = {};
     const alerts = [];
@@ -15,6 +54,7 @@ test('SITE rejects portrait and square images in the browser before opening the 
         document:{
             createElement:()=>({}),
             body:{append:()=>{}},
+            querySelector:()=>null,
             querySelectorAll:selector=>selector==='[data-photo-input]'?[input]:[],
         },
         navigator:{onLine:false},

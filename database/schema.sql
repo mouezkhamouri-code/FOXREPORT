@@ -86,9 +86,13 @@ CREATE TABLE IF NOT EXISTS foxreport_photos (
     mime_type VARCHAR(20) NOT NULL,
     caption VARCHAR(500) NOT NULL DEFAULT '',
     crop_format ENUM('original', 'square', 'landscape', 'portrait') NOT NULL DEFAULT 'original',
+    client_uid CHAR(36) NULL,
+    sort_order INT UNSIGNED NOT NULL DEFAULT 0,
+    deleted_at DATETIME NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     KEY idx_foxreport_photos_report_section (report_id, section_number),
+    UNIQUE KEY idx_foxreport_photos_client (report_id, client_uid),
     CONSTRAINT fk_foxreport_photos_report
         FOREIGN KEY (report_id) REFERENCES foxreport_reports (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

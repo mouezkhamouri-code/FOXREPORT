@@ -76,6 +76,7 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
         .placeholder { color: #8893a4; }
         .photo { page-break-inside: avoid; margin: 4mm 0; padding: 3mm; border: 1px solid #DCE5E7; text-align: center; }
         .photo img { max-width: 165mm; max-height: 70mm; }
+        .photo.widescreen img { width: 165mm; height: auto; max-height: none; }
         .caption { margin: 2mm 0 0; font-size: 8pt; word-wrap: break-word; }
         .location { page-break-inside: avoid; margin: 4mm 0; }
         .location img { width: 176mm; height: 99mm; }
@@ -170,7 +171,10 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
             if ($bytes === false) {
                 throw new RuntimeException('Impossible de lire une photo pour le PDF.');
             }
-            $html .= '<div class="photo"><img src="data:' . pdfEscape($photo['mime_type']) . ';base64,' . base64_encode($bytes)
+            $dimensions = imageOperation(static fn() => getimagesize($path));
+            if ($dimensions === false) throw new RuntimeException('Dimensions de photo illisibles pour le PDF.');
+            $widescreen = $dimensions[0] > $dimensions[1] && abs($dimensions[0] - $dimensions[1] * 16 / 9) <= 2;
+            $html .= '<div class="photo' . ($widescreen ? ' widescreen' : '') . '"><img src="data:' . pdfEscape($photo['mime_type']) . ';base64,' . base64_encode($bytes)
                 . '"><p class="caption">' . pdfEscape($photo['caption'] ?: 'Sans légende') . '</p></div>';
         }
         $html .= '</section>';

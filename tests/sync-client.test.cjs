@@ -44,6 +44,38 @@ function draft() {
         savedPhotos:[],revision:1,dirty:true,version:2,pendingChanges:2,
     };
 }
+test('Deleting a photo while its upload is in flight keeps the removal pending and never revives its local cache',async()=>{
+    const page=fixture(),record=draft();
+    record.entries.push(['photo_order',JSON.stringify(['photo1'])],['photo_deleted','[]']);
+    page.records.set(record.key,record);
+    page.setBehavior(async(url,options)=>{
+        if(url.includes('session'))return {ok:true,json:async()=>({user:'test',csrf:'csrf'})};
+        if(url.includes('create'))return {ok:true,json:async()=>({id:5,revision:1,status:'draft'})};
+        assert.equal(options.body.get('photo_uids_6[]'),'photo1');
+        const current=page.records.get(record.key);
+        current.photos=[];
+        current.entries=current.entries.map(([name,value])=>[name,name==='photo_order'?'[]':name==='photo_deleted'?'["photo1"]':value]);
+        current.version++;
+        return {ok:true,json:async()=>({id:5,revision:2,status:'draft'})};
+    });
+    await page.api.syncRecord(record.key);
+    const saved=page.records.get(record.key);
+    assert.equal(saved.savedPhotos.length,0);
+    assert.equal(saved.dirty,true);
+    assert.equal(saved.entries.find(([name])=>name==='photo_deleted')[1],'["photo1"]');
+});
+
+test('A conflict copy remaps photo order to new local IDs and does not delete photos in the new report',async()=>{
+    const page=fixture(),record=draft();
+    record.conflict=true;
+    record.savedPhotos=[{...record.photos[0],id:'saved-photo'}];
+    record.entries.push(['photo_order','["saved-photo","photo1"]'],['photo_deleted','["removed-photo"]']);
+    page.records.set(record.key,record);
+    const copy=await page.api.copyConflict(record.key);
+    const order=JSON.parse(copy.entries.find(([name])=>name==='photo_order')[1]);
+    assert.deepEqual(order,[copy.photos[1].id,copy.photos[0].id]);
+    assert.equal(copy.entries.find(([name])=>name==='photo_deleted')[1],'[]');
+});
 test('Offline synchronization never sends or removes local drafts and photos',async()=>{
     const page=fixture();page.context.navigator.onLine=false;
     const record=draft();page.records.set(record.key,record);

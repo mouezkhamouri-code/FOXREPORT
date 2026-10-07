@@ -34,7 +34,7 @@ if (!$photoId) {
 }
 
 try {
-    $query = $pdo->prepare('SELECT report_id, stored_name, mime_type FROM foxreport_photos WHERE id = ?');
+    $query = $pdo->prepare('SELECT report_id, stored_name, mime_type FROM foxreport_photos WHERE id = ? AND deleted_at IS NULL');
     $query->execute([$photoId]);
     $photo = $query->fetch(PDO::FETCH_ASSOC);
 } catch (PDOException $exception) {

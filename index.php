@@ -40,6 +40,7 @@ require_once __DIR__ . '/app/report-list.php';
 require_once __DIR__ . '/app/report-delete.php';
 require_once __DIR__ . '/app/section-state.php';
 require_once __DIR__ . '/app/salespeople.php';
+require_once __DIR__ . '/app/photo-state.php';
 
 if ($apiRequest && $_SERVER['REQUEST_METHOD'] === 'GET' && $_GET['api'] === 'session') {
     syncJson(['user' => $currentUser['sub'], 'email' => $currentUser['email'], 'csrf' => csrfToken()]);
@@ -380,17 +381,22 @@ function loadUploads(array $sections, array &$errors): array
                 continue;
             }
             if ($format !== 'original') {
-                $ratio = ['square' => 1, 'landscape' => 4 / 3, 'portrait' => 3 / 4][$format];
+                $ratios = ['square' => [1], 'landscape' => [16 / 9, 4 / 3], 'portrait' => [3 / 4]][$format];
+                $ratioMatches = false;
+                foreach ($ratios as $ratio) {
+                    if (abs($imageInfo[0] - $imageInfo[1] * $ratio) <= 2) $ratioMatches = true;
+                }
                 $limitWidth = $format === 'landscape' ? 1600 : 1200;
                 $limitHeight = $format === 'portrait' ? 1600 : 1200;
                 if ($mime !== 'image/jpeg' || $size > FOXREPORT_PHOTO_BYTES
                     || $imageInfo[0] > $limitWidth || $imageInfo[1] > $limitHeight
-                    || abs($imageInfo[0] - $imageInfo[1] * $ratio) > 2) {
+                    || !$ratioMatches) {
                     $errors[] = 'La photo ne respecte pas le format, les dimensions ou le plafond de 1 Mo.';
                     continue;
                 }
             }
             $uploads[] = [
+                'client_uid' => null,
                 'section' => $section,
                 'tmp_name' => $tmpName,
                 'mime' => $mime,
@@ -398,6 +404,13 @@ function loadUploads(array $sections, array &$errors): array
                 'caption' => $caption,
                 'format' => $format,
             ];
+            $uids = $_POST['photo_uids_' . $section] ?? [];
+            $uid = is_array($uids) ? ($uids[$index] ?? '') : null;
+            if (!is_string($uid) || ($uid !== '' && !preg_match('/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/', $uid))) {
+                $errors[] = 'Identifiant local de photo invalide.';
+            } elseif ($uid !== '') {
+                $uploads[array_key_last($uploads)]['client_uid'] = $uid;
+            }
         }
     }
     if ($total > 12) {
@@ -406,7 +419,7 @@ function loadUploads(array $sections, array &$errors): array
     return $uploads;
 }
 
-function saveReport(PDO $pdo, int $reportId, array $data, array $devices, array $uploads, string $status): void
+function saveReport(PDO $pdo, int $reportId, array $data, array $devices, array $uploads, string $status, array $photoState): void
 {
     $data['training_topics'] = json_encode($data['training_topics'], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
     $updateFields = array_keys($data);
@@ -436,8 +449,8 @@ function saveReport(PDO $pdo, int $reportId, array $data, array $devices, array 
         throw new RuntimeException('Le dossier de stockage des photos ne peut pas être créé.');
     }
     $insertPhoto = $pdo->prepare(
-        'INSERT INTO foxreport_photos (report_id, section_number, stored_name, mime_type, caption, crop_format)
-         VALUES (:report_id, :section_number, :stored_name, :mime_type, :caption, :crop_format)'
+        'INSERT INTO foxreport_photos (report_id, section_number, stored_name, mime_type, caption, crop_format, client_uid, sort_order)
+         VALUES (:report_id, :section_number, :stored_name, :mime_type, :caption, :crop_format, :client_uid, :sort_order)'
     );
     foreach ($uploads as $upload) {
         $storedName = bin2hex(random_bytes(16));
@@ -451,8 +464,11 @@ function saveReport(PDO $pdo, int $reportId, array $data, array $devices, array 
             'mime_type' => 'image/jpeg',
             'caption' => $upload['caption'],
             'crop_format' => $upload['format'],
+            'client_uid' => $upload['client_uid'],
+            'sort_order' => 2147483647,
         ]);
     }
+    savePhotoState($pdo, $reportId, $photoState);
 }
 
 $errors = [];
@@ -561,6 +577,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $formData = loadPostedReport($errors);
                 $postedDevices = loadPostedDevices($deviceCategories, $errors);
                 $uploads = loadUploads($sections, $errors);
+                $photoState = ['photo_order'=>[], 'photo_deleted'=>[]];
+                try { $photoState = photoStateInput($_POST); }
+                catch (RuntimeException $exception) { $errors[] = $exception->getMessage(); }
                 $targetStatus = ($_POST['save_status'] ?? '') === 'finalized' ? 'finalized' : 'draft';
                 if ($targetStatus === 'finalized') {
                     if ($formData['establishment'] === '' || $formData['report_date'] === null) {
@@ -595,10 +614,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             }
                         }
                         lockReportVersion($pdo, $id, $revision);
-                        saveReport($pdo, $id, $formData, $postedDevices, $uploads, $targetStatus);
+                        saveReport($pdo, $id, $formData, $postedDevices, $uploads, $targetStatus, $photoState);
                         $result = ['id' => $id, 'revision' => $revision + 1, 'status' => $targetStatus];
                         if ($apiRequest) {
-                            $savedPhotos = $pdo->prepare('SELECT id, section_number, caption, crop_format FROM foxreport_photos WHERE report_id = ? ORDER BY id');
+                            $savedPhotos = $pdo->prepare('SELECT id, client_uid, section_number, caption, crop_format FROM foxreport_photos WHERE report_id = ? AND deleted_at IS NULL ORDER BY section_number, sort_order, id');
                             $savedPhotos->execute([$id]);
                             $result['photos'] = $savedPhotos->fetchAll();
                             $operation = $pdo->prepare('INSERT INTO foxreport_sync_operations(request_id, report_id, user_sub, result_json) VALUES (?, ?, ?, ?)');
@@ -688,7 +707,7 @@ if ($reportId) {
             }
         }
         try {
-            $loadPhotos = $pdo->prepare('SELECT id, section_number, caption, crop_format FROM foxreport_photos WHERE report_id = ? ORDER BY id');
+            $loadPhotos = $pdo->prepare('SELECT id, client_uid, section_number, caption, crop_format FROM foxreport_photos WHERE report_id = ? AND deleted_at IS NULL ORDER BY section_number, sort_order, id');
             $loadPhotos->execute([$reportId]);
             foreach ($loadPhotos->fetchAll() as $photo) {
                 $photosBySection[(int) $photo['section_number']][] = $photo;
@@ -696,7 +715,7 @@ if ($reportId) {
         } catch (PDOException $exception) {
             error_log('FoxReport photo read failed: ' . $exception->getMessage());
             http_response_code(500);
-            $errors[] = 'Impossible de lire les photos du rapport.';
+            $errors[] = 'Impossible de lire les photos du rapport. Vérifiez la migration database/migrations/006-photo-management.sql.';
         }
     }
 }
@@ -781,7 +800,7 @@ function photoBlock(int $section, array $photosBySection, bool $editable): void
 {
     echo '<div class="photo-block" data-photo-section="' . $section . '"' . ($section === 1 ? ' data-landscape-only="true"' : '') . '><div>';
     echo $section === 1
-        ? '<h3>Photo du restaurant extérieur / intérieur / terrasse</h3><p>Image à prendre en mode large. Photos paysage uniquement ; vous pouvez en ajouter plusieurs.</p>'
+        ? '<h3>Photo du restaurant extérieur / intérieur / terrasse</h3><p>Image à prendre en mode large. Recadrage paysage 16:9 ajustable ; vous pouvez ajouter plusieurs photos.</p>'
         : '<h3>Photos de cette section</h3><p>JPEG, PNG ou WebP · 8 Mo maximum · Réduction automatique en JPEG à l’enregistrement (1 600 px, 1 Mo maximum).</p>';
     echo '</div>';
     if ($editable) {
@@ -791,7 +810,7 @@ function photoBlock(int $section, array $photosBySection, bool $editable): void
     if ($photos !== []) {
         echo '<div class="photo-grid">';
         foreach ($photos as $photo) {
-            echo '<figure><img src="photo.php?id=' . (int) $photo['id'] . '" data-photo-format="' . h($photo['crop_format']) . '" alt="' . h($photo['caption'] ?: 'Photo du rapport') . '"><figcaption>' . h($photo['caption'] ?: 'Sans légende') . '</figcaption></figure>';
+            echo '<figure><img src="photo.php?id=' . (int) $photo['id'] . '" data-photo-key="' . h(photoKey($photo)) . '" data-photo-format="' . h($photo['crop_format']) . '" alt="' . h($photo['caption'] ?: 'Photo du rapport') . '"><figcaption>' . h($photo['caption'] ?: 'Sans légende') . '</figcaption></figure>';
         }
         echo '</div>';
     }
@@ -818,6 +837,13 @@ if ($report !== null && !array_key_exists('completed_sections', $report)) {
 $completedSectionState = [];
 $salespeople = [];
 if ($isEditor) {
+    try {
+        $pdo->query('SELECT client_uid, sort_order, deleted_at FROM foxreport_photos LIMIT 0');
+    } catch (PDOException $exception) {
+        error_log('FoxReport photo management schema unavailable; SQLSTATE ' . $exception->getCode());
+        $errors[] = 'Appliquez la migration database/migrations/006-photo-management.sql après sauvegarde pour organiser les photos.';
+        $isEditable = false;
+    }
     try {
         $salespeople = salespeople($pdo);
         $columns = $pdo->query('SHOW COLUMNS FROM foxreport_reports')->fetchAll(PDO::FETCH_COLUMN);
@@ -954,6 +980,8 @@ try {
             <input type="hidden" name="active_section" value="<?= (int) $activeSection ?>" id="active-section">
             <input type="hidden" name="action" value="save" id="form-action">
             <input type="hidden" name="completed_sections" value="<?= h(json_encode($completedSectionState, JSON_THROW_ON_ERROR)) ?>" id="completed-sections">
+            <input type="hidden" name="photo_order" value="<?= h(is_string($_POST['photo_order'] ?? null) ? $_POST['photo_order'] : '[]') ?>" id="photo-order">
+            <input type="hidden" name="photo_deleted" value="<?= h(is_string($_POST['photo_deleted'] ?? null) ? $_POST['photo_deleted'] : '[]') ?>" id="photo-deleted">
             <div class="step-controls">
                 <button type="button" class="button button-secondary" id="previous-step">Précédent</button>
                 <span id="step-progress" class="sr-only" aria-live="polite">Étape <?= array_search($activeSection, array_keys($sections), true) + 1 ?>/<?= count($sections) ?></span>
@@ -966,7 +994,6 @@ try {
             </div>
             <fieldset <?= $isEditable ? '' : 'disabled' ?>>
                 <?php sectionStart(1, $formData, $activeSection); ?>
-                    <div class="section-title"><span class="section-index">01</span><div><p class="eyebrow">LE LIEU &amp; LES RÉFÉRENCES</p><h2>INFORMATIONS COMMERCIALES</h2><p>Les repères essentiels pour identifier l’intervention.</p></div></div>
                     <div class="form-grid commercial-row commercial-row-four">
                         <?php inputField($formData, 'establishment', 'Établissement'); ?>
                         <?php inputField($formData, 'address', 'Adresse'); ?>
@@ -996,7 +1023,6 @@ try {
                     </div>
                 <?php sectionEnd(1, $isEditable); ?>
                 <?php sectionStart(12, $formData, $activeSection); ?>
-                    <div class="section-title"><div><h2>SITE</h2></div></div>
                     <div class="location-block">
                         <h3>Localisation de l’intervention</h3>
                         <div class="form-grid">
@@ -1014,7 +1040,6 @@ try {
                 <?php sectionEnd(12, $isEditable); ?>
 
                 <?php sectionStart(2, $formData, $activeSection); ?>
-                    <div class="section-title"><span class="section-index">02</span><div><p class="eyebrow">RETOUR D’EXPÉRIENCE</p><h2>Évaluation</h2><p>Notez les conditions et la qualité de l’intervention.</p></div></div>
                     <div class="form-grid">
                         <?php inputField($formData, 'evaluation_minutes', 'Temps d’intervention (minutes)', 'number'); ?>
                         <?php statusSelect($formData, 'network_status', 'Réseau'); ?>
@@ -1025,7 +1050,6 @@ try {
                 <?php sectionEnd(2, $isEditable); ?>
 
                 <?php sectionStart(3, $formData, $activeSection); ?>
-                    <div class="section-title"><span class="section-index">03</span><div><p class="eyebrow">INVENTAIRE INSTALLÉ</p><h2>Matériel</h2><p>Ajoutez une ligne par appareil : les quantités sont calculées automatiquement à partir des détails.</p></div></div>
                     <div class="form-grid form-grid-narrow inventory-topline"><?php booleanSelect($formData, 'all_material_installed', 'Tout le matériel est installé'); ?></div>
                     <div class="inventory-summary" data-inventory-summary aria-live="polite"></div>
                     <div class="table-wrap device-table-wrap"><table class="device-table">
@@ -1058,35 +1082,30 @@ try {
                 <?php sectionEnd(3, $isEditable); ?>
 
                 <?php sectionStart(4, $formData, $activeSection); ?>
-                    <div class="section-title"><span class="section-index">04</span><div><p class="eyebrow">SUR PLACE</p><h2>Contexte et déroulement</h2><p>Consignez le créneau et les éléments marquants.</p></div></div>
                     <div class="form-grid form-grid-narrow"><?php inputField($formData, 'context_start_time', 'Heure de début', 'time'); ?><?php inputField($formData, 'context_end_time', 'Heure de fin', 'time'); ?></div>
                     <?php textareaField($formData, 'context_notes', 'Déroulement de l’intervention', 'Vous pouvez compléter ce rapport progressivement.'); ?>
                     <?php photoBlock(4, $photosBySection, $isEditable); ?>
                 <?php sectionEnd(4, $isEditable); ?>
 
                 <?php sectionStart(5, $formData, $activeSection); ?>
-                    <div class="section-title"><span class="section-index">05</span><div><p class="eyebrow">ÉQUIPEMENT DU SITE</p><h2>Infrastructure</h2><p>Décrivez la configuration et les prérequis observés.</p></div></div>
                     <div class="form-grid"><?php booleanSelect($formData, 'nuc_installed', 'NUC installé'); ?><?php booleanSelect($formData, 'internet_present', 'Connexion Internet présente'); ?><?php booleanSelect($formData, 'router_switch_present', 'Routeur / switch présent'); ?></div>
                     <?php textareaField($formData, 'infrastructure_notes', 'Notes sur l’infrastructure'); ?>
                     <?php photoBlock(5, $photosBySection, $isEditable); ?>
                 <?php sectionEnd(5, $isEditable); ?>
 
                 <?php sectionStart(6, $formData, $activeSection); ?>
-                    <div class="section-title"><span class="section-index">06</span><div><p class="eyebrow">COUVERTURE DU SITE</p><h2>Wi-Fi</h2><p>Les bornes Wi-Fi et leurs détails sont gérés dans l’inventaire Matériel.</p></div></div>
                     <div class="related-assets" data-related-categories="wifi_ap"></div>
                     <?php textareaField($formData, 'wifi_comment', 'Commentaire Wi-Fi'); ?>
                     <?php photoBlock(6, $photosBySection, $isEditable); ?>
                 <?php sectionEnd(6, $isEditable); ?>
 
                 <?php sectionStart(7, $formData, $activeSection); ?>
-                    <div class="section-title"><span class="section-index">07</span><div><p class="eyebrow">IMPRESSION</p><h2>Imprimantes</h2><p>Affectation, configuration et remarques sur les imprimantes répertoriées dans l’inventaire.</p></div></div>
                     <div class="related-assets" data-related-categories="printer_wired,printer_wifi,printer_portable"></div>
                     <?php textareaField($formData, 'printer_comment', 'Affectation et configuration'); ?>
                     <?php photoBlock(7, $photosBySection, $isEditable); ?>
                 <?php sectionEnd(7, $isEditable); ?>
 
                 <?php sectionStart(8, $formData, $activeSection); ?>
-                    <div class="section-title"><span class="section-index">08</span><div><p class="eyebrow">ENCAISSEMENT</p><h2>Paiement</h2><p>État des TPE et de Tap to Pay, avec détails des appareils dans l’inventaire.</p></div></div>
                     <div class="related-assets" data-related-categories="payment_terminal,nyc_mobile_tap"></div>
                     <div class="form-grid"><?php statusSelect($formData, 'payment_tpe_status', 'TPE'); ?><?php statusSelect($formData, 'payment_tap_to_pay_status', 'Tap to Pay'); ?></div>
                     <?php textareaField($formData, 'payment_comment', 'Commentaire paiement'); ?>
@@ -1094,7 +1113,6 @@ try {
                 <?php sectionEnd(8, $isEditable); ?>
 
                 <?php sectionStart(9, $formData, $activeSection); ?>
-                    <div class="section-title"><span class="section-index">09</span><div><p class="eyebrow">APPAREILS MOBILES</p><h2>iPad / iPhone</h2><p>État du compte Apple, activation Lightspeed et appareils inventoriés.</p></div></div>
                     <div class="related-assets" data-related-categories="ipad_pro,ipad,ipad_mini,iphone"></div>
                     <div class="form-grid"><?php selectField($formData, 'apple_account_status', 'Compte Apple', ['' => 'À préciser', 'ready' => 'Prêt', 'issue' => 'À résoudre', 'not_applicable' => 'Non applicable']); ?><?php selectField($formData, 'lightspeed_activation_status', 'Activation Lightspeed', ['' => 'À préciser', 'activated' => 'Activée', 'not_activated' => 'Non activée', 'not_applicable' => 'Non applicable']); ?></div>
                     <?php textareaField($formData, 'apple_comment', 'Commentaire iPad / iPhone'); ?>
@@ -1102,7 +1120,6 @@ try {
                 <?php sectionEnd(9, $isEditable); ?>
 
                 <?php sectionStart(10, $formData, $activeSection); ?>
-                    <div class="section-title"><span class="section-index">10</span><div><p class="eyebrow">ACCOMPAGNEMENT</p><h2>Formation</h2><p>Suivez les thèmes abordés et les personnes accompagnées.</p></div></div>
                     <div class="form-grid"><?php booleanSelect($formData, 'training_delivered', 'Formation dispensée'); ?><?php inputField($formData, 'training_participants', 'Nombre de participants', 'number'); ?></div>
                     <fieldset class="checklist"><legend>Thèmes de formation</legend>
                         <?php foreach ($trainingTopics as $topic => $label): ?><label class="check-option"><input type="checkbox" name="training_topics[]" value="<?= h($topic) ?>"<?= in_array($topic, $formData['training_topics'] ?? [], true) ? ' checked' : '' ?>><span><?= h($label) ?></span></label><?php endforeach; ?>
@@ -1112,7 +1129,6 @@ try {
                 <?php sectionEnd(10, $isEditable); ?>
 
                 <?php sectionStart(11, $formData, $activeSection); ?>
-                    <div class="section-title"><span class="section-index">11</span><div><p class="eyebrow">POUR TERMINER</p><h2>Conclusion</h2><p>Résumez les résultats, les suites et les points à reprendre.</p></div></div>
                     <?php textareaField($formData, 'conclusion', 'Conclusion de l’intervention'); ?>
                     <?php photoBlock(11, $photosBySection, $isEditable); ?>
                 <?php sectionEnd(11, $isEditable); ?>

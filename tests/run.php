@@ -147,6 +147,9 @@ try {
     $html = reportPdfHtml($report, $devices, $photos);
     check(!str_contains($html, '<script>') && str_contains($html, '&lt;script&gt;'), 'Report HTML escaped');
     check(str_contains($html, 'TEST photo caption') && str_contains($html, 'data:image/jpeg;base64,'), 'Photo and caption included in PDF template');
+    $orderedPhotos = [$photos[0] + ['sort_order'=>1], array_replace($photos[0], ['caption'=>'SECOND synthetic photo', 'sort_order'=>2])];
+    $orderedHtml = reportPdfHtml($report, $devices, $orderedPhotos);
+    check(strpos($orderedHtml, 'TEST photo caption') < strpos($orderedHtml, 'SECOND synthetic photo'), 'PDF retains the saved photo order within a section');
     check(str_contains($html, 'Configuré') && str_contains($html, '<td>1</td>'), 'Device state and derived quantity included');
     check(str_contains($html, 'BROUILLON') && str_contains($html, '☑'), 'Draft status and training checklist included');
     $pdf = renderReportPdf($report, $devices, $photos);
@@ -154,6 +157,16 @@ try {
     $imageWarnings = array_filter($GLOBALS['_dompdf_warnings'] ?? [], static fn(string $warning): bool => str_contains($warning, 'Image'));
     check($imageWarnings === [], 'PDF photo rendering has no image warnings');
     check(str_contains($pdf->output(), '/Subtype /Image'), 'Rendered PDF embeds photo image');
+    $wideImage = imagecreatetruecolor(1600, 900);
+    imagejpeg($wideImage, $photoDirectory . '/' . $name . '.jpg');
+    unset($wideImage);
+    $wideHtml = reportPdfHtml($report, $devices, $photos);
+    check(str_contains($wideHtml, '<div class="photo widescreen">'), '16:9 photo uses full-width PDF layout');
+    check(str_contains($wideHtml, '.photo.widescreen img { width: 165mm; height: auto; max-height: none; }'), 'Wide photos are not narrowed by the legacy 70mm height limit');
+    $widePdf = renderReportPdf($report, $devices, $photos);
+    check(str_contains($widePdf->output(), '/Subtype /Image'), 'Full-width 16:9 photo renders in PDF');
+    $uncompressed = $widePdf->output(['compress' => 0]);
+    check(preg_match('/467\.7[0-9]* 0 0 263\.[0-9]+ [^\r\n]+ cm/', $uncompressed) === 1, 'Rendered wide photo measures 165mm across with proportional 16:9 height');
     echo "All FoxReport tests passed; no database connection used.\n";
 } finally {
     if ($photoDirectory !== null && is_dir($photoDirectory)) {

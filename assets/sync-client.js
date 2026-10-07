@@ -54,6 +54,7 @@
             body.append(`photos_${photo.section}[]`,photo.blob,'photo.jpg');
             body.append(`captions_${photo.section}[]`,photo.caption);
             body.append(`formats_${photo.section}[]`,photo.format ?? 'original');
+            body.append(`photo_uids_${photo.section}[]`,photo.id);
         });
         let result;
         try {
@@ -77,6 +78,8 @@
             const remaining = (current.photos || []).filter(photo=>!sentIds.has(photo.id));
             const saved = new Map((current.savedPhotos || []).map(photo=>[photo.id,photo]));
             operation.photos.forEach(photo=>saved.set(photo.id,{...photo}));
+            const deleted = new Set(JSON.parse(current.entries.find(([name])=>name==='photo_deleted')?.[1] || '[]'));
+            deleted.forEach(id=>saved.delete(id));
             const updated = {
                 ...current, serverId, revision:Number(result.revision), status:result.status,
                 entries:current.entries.map(([name,value])=>[name,name==='revision'?String(result.revision):value]),
@@ -192,8 +195,10 @@
         const signature=snapshotSignature(source);
         const originals=[...(source.photos || []),...(source.savedPhotos || [])];
         const photos=originals.map(photo=>({...photo,id:crypto.randomUUID()}));
+        const photoIds=new Map(originals.map((photo,index)=>[photo.id,photos[index].id]));
         const copy=await createDraft(source.user,record=>({...record,
-            entries:source.entries.map(([name,value])=>[name,name==='report_id'?record.id:name==='revision'?'1':value]),
+            entries:source.entries.map(([name,value])=>[name,name==='report_id'?record.id:name==='revision'?'1':
+                name==='photo_deleted'?'[]':name==='photo_order'?JSON.stringify(JSON.parse(value).filter(id=>photoIds.has(id)).map(id=>photoIds.get(id))):value]),
             photos,savedPhotos:[],title:source.title,section:source.section,resolutionPending:true,conflict:true,
             error:'Copie en attente de vérification. L’original est conservé ; résolvez cette copie si la vérification a été interrompue.'}));
         const entries=copy.entries;
