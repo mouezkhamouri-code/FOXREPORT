@@ -31,7 +31,7 @@ $row = array_replace($row, [
 $pdo = new ReportListTestPDO($columns, [$row]);
 $reports = loadReportList($pdo);
 listCheck(count($reports) === 1 && $reports[0]['completion']['filled'] === 2, 'List includes report and saved completion');
-listCheck(!isset($reports[0]['contact_phone']) && !isset($reports[0]['training_topics']), 'List excludes detail fields');
+listCheck(isset($reports[0]['address'], $reports[0]['contact_name'], $reports[0]['contact_phone']) && !isset($reports[0]['training_topics']), 'List includes quick contact fields but excludes checklist details');
 $html = renderReportList($reports);
 listCheck(str_contains($html, '&lt;script&gt;TEST&lt;/script&gt;') && !str_contains($html, '<script>'), 'Report title safely escaped');
 listCheck(str_contains($html, 'index.php?id=1'), 'Report remains reopenable');
@@ -60,3 +60,12 @@ listCheck(substr_count($html, '<article class="report-card ') === 1 && !str_cont
 listCheck(str_contains($html, '<dialog id="report-actions-1"') && str_contains($html, 'aria-haspopup="dialog"')
     && str_contains($html, 'rapport.php?id=1') && str_contains($html, 'name="confirm_delete" value="1" required'), 'Action popup exposes preview and mandatory deletion checkbox');
 listCheck(str_contains(renderReportList($reports), 'report-card-invalid'), 'Invalid completion has explicit error color');
+$contactReport = array_replace($reports[0], ['address'=>'12 rue Test & Café', 'contact_name'=>'Marie <Test>', 'contact_phone'=>'+33 (0)6 12 34 56 78']);
+$contactCard = renderReportList([$contactReport]);
+listCheck(str_contains($contactCard, 'https://www.google.com/maps/search/?api=1&amp;query=12%20rue%20Test%20%26%20Caf%C3%A9')
+    && str_contains($contactCard, 'https://www.waze.com/ul?q=12%20rue%20Test%20%26%20Caf%C3%A9&amp;navigate=yes'), 'Address offers encoded Maps and Waze links');
+listCheck(str_contains($contactCard, 'Marie &lt;Test&gt;') && str_contains($contactCard, 'href="tel:+33612345678"'), 'Contact safely escaped and international phone omits optional national zero');
+listCheck(strpos($contactCard, 'report-card-name') < strpos($contactCard, 'report-card-address')
+    && strpos($contactCard, 'report-card-address') < strpos($contactCard, 'report-card-contact'), 'Address and contact appear immediately below restaurant');
+listCheck(!str_contains(renderReportList([$reports[0]]), 'report-card-address'), 'Empty address does not create placeholder links');
+listCheck(!str_contains(renderReportList([array_replace($contactReport, ['contact_phone'=>'javascript:alert(1)'])]), 'href="tel:'), 'Invalid phone never becomes a callable link');

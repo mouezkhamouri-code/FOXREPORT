@@ -25,7 +25,7 @@ function loadReportList(PDO $pdo): array
     $rows = $pdo->query('SELECT ' . implode(', ', $columns) . ' FROM foxreport_reports ORDER BY updated_at DESC, id DESC')->fetchAll(PDO::FETCH_ASSOC);
     $reports = [];
     foreach ($rows as $row) {
-        $report = array_intersect_key($row, array_flip(['id', 'revision', 'establishment', 'report_date', 'report_type', 'status']));
+        $report = array_intersect_key($row, array_flip(['id', 'revision', 'establishment', 'report_date', 'report_type', 'status', 'address', 'contact_name', 'contact_phone']));
         try {
             $report['completion'] = reportCompletion($row);
         } catch (JsonException | RuntimeException $exception) {
@@ -67,6 +67,29 @@ function renderReportList(array $reports, string $csrfToken = '', string $filter
                 <article class="report-card report-card-<?= $tone ?>">
                     <a class="report-card-open" href="index.php?id=<?= (int) $row['id'] ?>" aria-label="Ouvrir le rapport : <?= reportListEscape($name) ?>"><span class="sr-only">Ouvrir</span></a>
                     <h3 class="report-card-name" title="<?= reportListEscape($name) ?>"><?= reportListEscape($name) ?></h3>
+                    <?php
+                    $address = trim((string) ($row['address'] ?? ''));
+                    $contact = trim((string) ($row['contact_name'] ?? ''));
+                    $phone = trim((string) ($row['contact_phone'] ?? ''));
+                    $dialSource = str_starts_with($phone, '+') ? str_replace('(0)', '', $phone) : $phone;
+                    $dial = preg_replace('/[\s().-]+/', '', $dialSource);
+                    $callable = $dial !== null && preg_match('/^\+?[0-9]{3,15}$/', $dial) === 1;
+                    ?>
+                    <?php if ($address !== ''): ?>
+                        <div class="report-card-address">
+                            <a href="https://www.google.com/maps/search/?api=1&amp;query=<?= rawurlencode($address) ?>" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir Maps : <?= reportListEscape($address) ?>"><?= reportListEscape($address) ?></a>
+                            <a class="report-card-waze" href="https://www.waze.com/ul?q=<?= rawurlencode($address) ?>&amp;navigate=yes" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir Waze : <?= reportListEscape($address) ?>">Waze</a>
+                        </div>
+                    <?php endif; ?>
+                    <?php if ($contact !== '' || $phone !== ''): ?>
+                        <div class="report-card-contact">
+                            <?php if ($contact !== ''): ?><strong><?= reportListEscape($contact) ?></strong><?php endif; ?>
+                            <?php if ($phone !== ''): ?>
+                                <?php if ($callable): ?><a href="tel:<?= reportListEscape($dial) ?>" aria-label="Appeler <?= reportListEscape($contact !== '' ? $contact : $phone) ?>"><?= reportListEscape($phone) ?></a>
+                                <?php else: ?><span><?= reportListEscape($phone) ?></span><?php endif; ?>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
                     <div class="report-card-completion">
                         <?php if ($row['completion'] === null): ?>
                             <strong role="alert" title="Remplissage indisponible : checklist invalide, à corriger dans ce rapport.">Remplissage indisponible</strong>
