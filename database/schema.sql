@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS foxreport_reports (
     gallery_url VARCHAR(2048) NOT NULL DEFAULT '',
     author VARCHAR(190) NOT NULL DEFAULT '',
     intervention_id VARCHAR(100) NOT NULL DEFAULT '',
+    intervention_followup MEDIUMTEXT NULL,
     evaluation_minutes SMALLINT UNSIGNED NULL,
     network_status VARCHAR(30) NOT NULL DEFAULT '',
     hardware_installation VARCHAR(30) NOT NULL DEFAULT '',

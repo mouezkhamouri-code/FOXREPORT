@@ -41,6 +41,7 @@ require_once __DIR__ . '/app/report-delete.php';
 require_once __DIR__ . '/app/section-state.php';
 require_once __DIR__ . '/app/salespeople.php';
 require_once __DIR__ . '/app/photo-state.php';
+require_once __DIR__ . '/app/intervention-followup.php';
 
 if ($apiRequest && $_SERVER['REQUEST_METHOD'] === 'GET' && $_GET['api'] === 'session') {
     syncJson(['user' => $currentUser['sub'], 'email' => $currentUser['email'], 'csrf' => csrfToken()]);
@@ -152,6 +153,10 @@ function loadPostedReport(array &$errors): array
         'conclusion' => 12000,
     ];
     $data = [];
+    if (array_key_exists('intervention_followup', $_POST)) {
+        try { $data['intervention_followup'] = json_encode(interventionFollowup($_POST['intervention_followup']), JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR); }
+        catch (RuntimeException $exception) { $errors[] = $exception->getMessage(); }
+    }
     if (array_key_exists('completed_sections', $_POST)) {
         try {
             $data['completed_sections'] = json_encode(completedSections($_POST['completed_sections']), JSON_THROW_ON_ERROR);
@@ -473,7 +478,7 @@ function saveReport(PDO $pdo, int $reportId, array $data, array $devices, array 
 
 $errors = [];
 $reportId = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
-$activeSection = filter_input(INPUT_GET, 'section', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 12]]);
+$activeSection = filter_input(INPUT_GET, 'section', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 13]]);
 $activeSection = $activeSection ?: 1;
 $report = null;
 $devices = [];
@@ -568,7 +573,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         } elseif ($action === 'save') {
             $id = filter_input(INPUT_POST, 'report_id', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
-            $sectionInput = filter_input(INPUT_POST, 'active_section', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 12]]);
+            $sectionInput = filter_input(INPUT_POST, 'active_section', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 13]]);
             $activeSection = $sectionInput ?: 1;
             if (!$id) {
                 $errors[] = 'Le rapport à enregistrer est invalide.';
@@ -848,6 +853,7 @@ if ($isEditor) {
         $salespeople = salespeople($pdo);
         $columns = $pdo->query('SHOW COLUMNS FROM foxreport_reports')->fetchAll(PDO::FETCH_COLUMN);
         if (!in_array('sales_rep_id', $columns, true)) throw new RuntimeException('Appliquez la migration database/migrations/005-salespeople.sql après sauvegarde.');
+        if (!in_array('intervention_followup', $columns, true)) throw new RuntimeException('Appliquez la migration database/migrations/007-intervention-followup.sql après sauvegarde.');
     } catch (PDOException $exception) {
         error_log('FoxReport salespeople schema unavailable; SQLSTATE ' . $exception->getCode());
         $errors[] = 'Appliquez la migration database/migrations/005-salespeople.sql après sauvegarde pour sélectionner un commercial.';
@@ -999,6 +1005,7 @@ try {
                         <?php inputField($formData, 'address', 'Adresse'); ?>
                         <?php inputField($formData, 'contact_name', 'Contact sur place'); ?>
                         <?php inputField($formData, 'contact_phone', 'Téléphone contact', 'tel', 'tel'); ?>
+                        <?php inputField($formData, 'contact_email', 'E-mail contact', 'email', 'email'); ?>
                     </div>
                     <div class="form-grid commercial-row">
                         <input type="hidden" name="sales_rep" value="<?= h(value($formData, 'sales_rep')) ?>">
@@ -1008,21 +1015,28 @@ try {
                         selectField($formData, 'sales_rep_id', 'Commercial', $salesOptions);
                         ?>
                         <?php inputField($formData, 'order_reference', 'Référence de commande'); ?>
+                        <?php inputField($formData, 'order_date', 'Date de commande', 'date'); ?>
+                        <?php inputField($formData, 'customer_id', 'Customer ID'); ?>
                     </div>
+                <?php sectionEnd(1, $isEditable); ?>
+                <?php sectionStart(13, $formData, $activeSection); ?>
                     <div class="form-grid commercial-row commercial-row-four">
-                        <?php inputField($formData, 'gallery_url', 'Lien galerie photo', 'url'); ?>
+                        <label class="field field-floating field-native"><input id="organisation-order-date" type="date" readonly value="<?= h(value($formData, 'order_date')) ?>"><span class="field-title">Date de commande</span></label>
+                        <?php inputField($formData, 'report_date', 'Date de l’intervention', 'date'); ?>
                         <?php inputField($formData, 'intervention_id', 'Identifiant intervention'); ?>
                         <label class="field field-floating"><input id="report-day-number" placeholder=" " readonly aria-label="Numéro du jour dans l’année (calculé)"><span class="field-title">Numéro du jour (calculé)</span></label>
                         <?php inputField($formData, 'author', 'Rédacteur'); ?>
                     </div>
-                    <div class="form-grid commercial-row commercial-row-four">
-                        <?php inputField($formData, 'report_date', 'Date de l’intervention', 'date'); ?>
-                        <?php inputField($formData, 'contact_email', 'E-mail contact', 'email', 'email'); ?>
-                        <?php inputField($formData, 'customer_id', 'Customer ID'); ?>
-                        <?php inputField($formData, 'order_date', 'Date de commande', 'date'); ?>
+                    <div class="intervention-followup">
+                        <h3>Suivi intervention</h3>
+                        <input type="hidden" name="intervention_followup" id="intervention-followup" value="<?= h(value($formData, 'intervention_followup') ?: '[]') ?>">
+                        <div id="followup-rows"></div>
+                        <?php if ($isEditable): ?><button type="button" class="button button-primary" id="add-followup">Ajouter une ligne de suivi</button><?php endif; ?>
+                        <p id="followup-message" role="alert"></p>
                     </div>
-                <?php sectionEnd(1, $isEditable); ?>
+                <?php sectionEnd(13, $isEditable); ?>
                 <?php sectionStart(12, $formData, $activeSection); ?>
+                    <?php inputField($formData, 'gallery_url', 'Lien galerie photo', 'url'); ?>
                     <div class="location-block">
                         <h3>Localisation de l’intervention</h3>
                         <div class="form-grid">

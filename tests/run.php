@@ -125,7 +125,7 @@ try {
     $pdf = renderReportPdf([], [], []);
     $pdfBytes = $pdf->output();
     check(str_starts_with($pdfBytes, '%PDF-'), 'Actual PDF output');
-    check($pdf->getCanvas()->get_page_count() === 12, 'Blank model has exactly 12 A4 pages');
+    check($pdf->getCanvas()->get_page_count() === 13, 'Blank model has exactly 13 A4 pages');
     check(abs($pdf->getCanvas()->get_width() - 595.28) < 1, 'A4 portrait width');
     unset($pdf);
 
@@ -141,6 +141,7 @@ try {
         'id' => $reportId, 'status' => 'draft', 'establishment' => '<script>Synthetic & test</script>',
         'all_material_installed' => 0, 'training_delivered' => 1, 'training_topics' => '["orders_service"]',
         'conclusion' => str_repeat('Synthetic long conclusion. ', 350),
+        'intervention_followup' => '[{"date":"2026-10-07","comment":"Synthetic follow-up <script>escaped</script>"}]',
     ];
     $devices = [['category' => 'wifi_ap', 'brand' => 'TEST', 'model' => 'Synthetic', 'state' => 'configured', 'location' => 'TEST location']];
     $photos = [['report_id' => $reportId, 'stored_name' => $name, 'mime_type' => 'image/jpeg', 'section_number' => 6, 'caption' => 'TEST photo caption']];
@@ -152,6 +153,7 @@ try {
     check(strpos($orderedHtml, 'TEST photo caption') < strpos($orderedHtml, 'SECOND synthetic photo'), 'PDF retains the saved photo order within a section');
     check(str_contains($html, 'Configuré') && str_contains($html, '<td>1</td>'), 'Device state and derived quantity included');
     check(str_contains($html, 'BROUILLON') && str_contains($html, '☑'), 'Draft status and training checklist included');
+    check(str_contains($html, 'Suivi intervention') && str_contains($html, '2026-10-07') && str_contains($html, 'Synthetic follow-up &lt;script&gt;escaped&lt;/script&gt;'), 'Dated follow-up included in PDF with escaped comments');
     $pdf = renderReportPdf($report, $devices, $photos);
     check($pdf->getCanvas()->get_page_count() > 11, 'Long text paginates instead of truncating');
     $imageWarnings = array_filter($GLOBALS['_dompdf_warnings'] ?? [], static fn(string $warning): bool => str_contains($warning, 'Image'));

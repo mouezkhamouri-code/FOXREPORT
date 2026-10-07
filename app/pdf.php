@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/report-definition.php';
 require_once __DIR__ . '/images.php';
 require_once __DIR__ . '/maps.php';
+require_once __DIR__ . '/intervention-followup.php';
 
 function pdfEscape(string $text): string
 {
@@ -14,13 +15,13 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
 {
     global $sections, $deviceCategories, $trainingTopics;
     $fields = [
-        12 => [],
+        12 => ['gallery_url'=>'Lien galerie photo'],
+        13 => ['order_date'=>'Date de commande', 'report_date'=>'Date de l’intervention', 'intervention_id'=>'Identifiant intervention', 'author'=>'Rédacteur'],
         1 => [
-            'establishment' => 'Établissement', 'address' => 'Adresse', 'report_date' => 'Date',
+            'establishment' => 'Établissement', 'address' => 'Adresse',
             'contact_name' => 'Contact', 'contact_phone' => 'Téléphone', 'contact_email' => 'E-mail',
             'sales_rep' => 'Commercial', 'customer_id' => 'Customer ID', 'order_reference' => 'Référence de commande',
-            'order_date' => 'Date de commande', 'gallery_url' => 'Lien galerie', 'author' => 'Rédacteur',
-            'intervention_id' => 'Identifiant intervention',
+            'order_date' => 'Date de commande',
         ],
         2 => [
             'evaluation_minutes' => 'Temps d’intervention (minutes)', 'network_status' => 'Réseau',
@@ -105,6 +106,14 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
                 . ((string) $value !== '' ? nl2br(pdfEscape((string) $value)) : '<span class="placeholder">À renseigner</span>') . '</td></tr>';
         }
         $html .= '</table>';
+        if ($number === 13) {
+            $html .= '<h3>Suivi intervention</h3>';
+            $followup = interventionFollowup($report['intervention_followup'] ?? null);
+            if ($followup === []) $html .= '<p class="placeholder">Aucun suivi enregistré.</p>';
+            foreach ($followup as $row) {
+                $html .= '<h3>' . pdfEscape($row['date']) . '</h3><div class="notes">' . pdfEscape($row['comment']) . '</div>';
+            }
+        }
         if ($number === 12 && ($report['latitude'] ?? null) !== null && ($report['longitude'] ?? null) !== null) {
             $html .= '<div class="location"><h3>Localisation de l’intervention</h3><p>'
                 . pdfEscape((string) $report['latitude']) . ', ' . pdfEscape((string) $report['longitude'])
@@ -160,9 +169,9 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
             $html .= '<h3>' . pdfEscape($fieldLabel) . '</h3><div class="notes">'
                 . ($text !== '' ? pdfEscape($text) : '<span class="placeholder">À compléter</span>') . '</div>';
         }
-        if ($number !== 1) $html .= '<h3>Photos et légendes</h3>';
-        $matchingPhotos = $number === 1 ? [] : array_filter($photos, static fn(array $photo): bool => (int) $photo['section_number'] === ($number === 12 ? 1 : $number));
-        if ($number !== 1 && $matchingPhotos === []) {
+        if (!in_array($number, [1,13], true)) $html .= '<h3>Photos et légendes</h3>';
+        $matchingPhotos = in_array($number, [1,13], true) ? [] : array_filter($photos, static fn(array $photo): bool => (int) $photo['section_number'] === ($number === 12 ? 1 : $number));
+        if (!in_array($number, [1,13], true) && $matchingPhotos === []) {
             $html .= '<div class="notes placeholder">Aucune photo ajoutée à cette section.</div>';
         }
         foreach ($matchingPhotos as $photo) {

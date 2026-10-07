@@ -28,6 +28,118 @@
     dateInput?.addEventListener('change', updateDayNumber);
     updateDayNumber();
 
+    const orderDate = document.querySelector('[name="order_date"]');
+    const orderDateCopy = document.querySelector('#organisation-order-date');
+    function updateOrderDate() {
+        if (orderDate && orderDateCopy) orderDateCopy.value = orderDate.value;
+    }
+    orderDate?.addEventListener('input', updateOrderDate);
+    orderDate?.addEventListener('change', updateOrderDate);
+    updateOrderDate();
+
+    const followupField = document.querySelector('#intervention-followup');
+    const followupRows = document.querySelector('#followup-rows');
+    const followupMessage = document.querySelector('#followup-message');
+    const addFollowup = document.querySelector('#add-followup');
+    let followup = [];
+    let followupDialog;
+    let followupEditor;
+    let editingFollowup = null;
+    if (followupField) {
+        followupDialog=document.createElement('dialog');
+        followupDialog.id='followup-dialog';
+        followupDialog.className='media-dialog followup-dialog';
+        followupDialog.setAttribute('aria-labelledby','followup-dialog-title');
+        followupDialog.innerHTML=`<form id="followup-editor">
+            <h2 id="followup-dialog-title">Suivi intervention</h2>
+            <label class="field field-floating field-native"><input type="date" name="date" required><span class="field-title">Date du suivi</span></label>
+            <label class="field field-floating"><textarea name="comment" placeholder=" " maxlength="4000" required rows="5"></textarea><span class="field-title">Commentaire</span></label>
+            <p id="followup-editor-error" role="alert"></p>
+            <div class="followup-dialog-actions">
+                <button type="submit" class="button button-primary">Enregistrer</button>
+                <button type="button" class="button button-secondary" id="followup-cancel">Annuler</button>
+                <button type="button" class="button button-secondary" id="followup-delete">Supprimer</button>
+            </div></form>`;
+        document.body.append(followupDialog);
+        followupEditor=followupDialog.querySelector('#followup-editor');
+        followupEditor.addEventListener('submit',event=>{
+            event.preventDefault();
+            const date=followupEditor.elements.date;
+            const comment=followupEditor.elements.comment;
+            if (!followupEditor.reportValidity()) return;
+            if (comment.value.trim()==='') {
+                followupDialog.querySelector('#followup-editor-error').textContent='Indiquez un commentaire.';
+                comment.focus();return;
+            }
+            const row={date:date.value,comment:comment.value.trim()};
+            if (editingFollowup===null) followup.push(row);
+            else followup[editingFollowup]=row;
+            followupDialog.close();renderFollowup();writeFollowup();
+        });
+        followupDialog.querySelector('#followup-cancel').onclick=()=>followupDialog.close();
+        followupDialog.querySelector('#followup-delete').onclick=()=>{
+            if (editingFollowup===null || !confirm('Supprimer cette ligne de suivi ?')) return;
+            followup.splice(editingFollowup,1);
+            followupDialog.close();renderFollowup();writeFollowup();
+        };
+    }
+    function openFollowup(index=null) {
+        editingFollowup=index;
+        const row=index===null ? {date:'',comment:''} : followup[index];
+        followupEditor.elements.date.value=row.date;
+        followupEditor.elements.comment.value=row.comment;
+        followupDialog.querySelector('#followup-dialog-title').textContent=index===null?'Ajouter un suivi':'Modifier le suivi';
+        followupDialog.querySelector('#followup-editor-error').textContent='';
+        followupDialog.querySelector('#followup-delete').hidden=index===null;
+        followupDialog.showModal();
+        followupEditor.elements.date.focus();
+    }
+    function writeFollowup() {
+        followupField.value = JSON.stringify(followup);
+        form.dispatchEvent(new CustomEvent('fox-section-edit', {detail:{sections:[13]}}));
+    }
+    function renderFollowup() {
+        if (!followupField || !followupRows) return;
+        followupRows.replaceChildren();
+        const editable = !!addFollowup && !form.querySelector('fieldset')?.disabled;
+        followup.forEach((row,index)=>{
+            const wrapper = document.createElement('div');
+            wrapper.className = 'followup-row';
+            const date=document.createElement('time');
+            date.dateTime=row.date;date.textContent=row.date.split('-').reverse().join('/');
+            const comment=document.createElement('p');
+            comment.className='followup-comment';comment.textContent=row.comment;
+            wrapper.append(date,comment);
+            if (editable) {
+                const edit=document.createElement('button');
+                edit.type='button';edit.className='button button-secondary';edit.textContent='Modifier';
+                edit.setAttribute('aria-label',`Modifier le suivi du ${date.textContent}`);
+                edit.onclick=()=>openFollowup(index);
+                wrapper.append(edit);
+            }
+            followupRows.append(wrapper);
+        });
+        updateEmptyFields();
+    }
+    function restoreFollowup() {
+        if (!followupField) return;
+        try {
+            const rows=JSON.parse(followupField.value || '[]');
+            if (!Array.isArray(rows) || rows.some(row=>!row || typeof row.date!=='string' || typeof row.comment!=='string')) throw new Error('Format du suivi invalide.');
+            followup=rows;
+            if (followupMessage) followupMessage.textContent='';
+            renderFollowup();
+        } catch (error) {
+            if (followupMessage) followupMessage.textContent=`Suivi intervention : ${error.message}`;
+            if (addFollowup) addFollowup.disabled=true;
+        }
+    }
+    restoreFollowup();
+    addFollowup?.addEventListener('click',()=>{
+        if (followup.length>=100) { followupMessage.textContent='Le suivi accepte au maximum 100 lignes.';return; }
+        openFollowup();
+    });
+
     const tabs = Array.from(document.querySelectorAll('[data-section-tab]'));
     const panels = Array.from(document.querySelectorAll('[data-section-panel]'));
     const activeSectionField = document.querySelector('#active-section');
@@ -52,7 +164,7 @@
         const panel = event.target.closest('[data-section-panel]');
         if (!panel || event.target.type === 'file') return;
         const number = Number(panel.dataset.sectionPanel);
-        invalidateSections(number === 3 ? [3,5,6,7,8,9] : [number]);
+        invalidateSections(event.target.name==='order_date' ? [1,13] : number === 3 ? [3,5,6,7,8,9] : [number]);
     }
     form.addEventListener('input', invalidatePanel);
     form.addEventListener('change', invalidatePanel);
@@ -131,6 +243,8 @@
     });
     form.addEventListener('fox-sections-restored', () => {
         updateDayNumber();
+        updateOrderDate();
+        restoreFollowup();
         updateEmptyFields();
         showSection(activeSectionField.value);
         if (JSON.parse(completedField?.value || '[]').includes(Number(activeSectionField.value))) {

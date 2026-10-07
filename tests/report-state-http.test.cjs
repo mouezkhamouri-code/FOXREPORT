@@ -27,7 +27,7 @@ test('Real report save and sync persist section validation, preserve legacy stat
             fs.cpSync(path.join(root,'assets'),path.join(directory,'assets'),{recursive:true});
             for(const name of ['offline.html','sw.js','manifest.webmanifest','version.json','photo.php'])fs.copyFileSync(path.join(root,name),path.join(directory,name));
         }
-        for(const name of ['report-definition.php','images.php','completion.php','sync.php','maps.php','report-list.php','report-delete.php','section-state.php','salespeople.php','photo-state.php','version.php','build-version.php']) {
+        for(const name of ['report-definition.php','images.php','completion.php','sync.php','maps.php','report-list.php','report-delete.php','section-state.php','salespeople.php','photo-state.php','intervention-followup.php','version.php','build-version.php']) {
             fs.copyFileSync(path.join(root,'app',name),path.join(directory,'app',name));
         }
         fs.writeFileSync(path.join(directory,'app','auth.php'),`<?php
@@ -160,19 +160,25 @@ test('Real report save and sync persist section validation, preserve legacy stat
         assert.doesNotMatch(templateHtml,/alice@example.com|0600000000/);
         assert.match(templateHtml,/INFORMATIONS COMMERCIALES/);
         assert.doesNotMatch(templateHtml,/class="section-title"|LE LIEU &amp; LES RÉFÉRENCES|Les repères essentiels/);
-        const commercial=templateHtml.match(/data-section-panel="1"[\s\S]*?data-section-panel="12"/)[0];
-        const commercialOrder=['establishment','address','contact_name','contact_phone','sales_rep_id','order_reference','gallery_url','intervention_id','report-day-number','author','report_date','contact_email','customer_id','order_date'];
+        const commercial=templateHtml.match(/data-section-panel="1"[\s\S]*?data-section-panel="13"/)[0];
+        const commercialOrder=['establishment','address','contact_name','contact_phone','contact_email','sales_rep_id','order_reference','order_date','customer_id'];
         let lastPosition=-1;
         for(const field of commercialOrder) {
             const position=commercial.indexOf(field==='report-day-number'?`id="${field}"`:`name="${field}"`);
             assert.ok(position>lastPosition,`${field} follows the requested commercial order`);
             lastPosition=position;
         }
+        assert.doesNotMatch(commercial,/name="report_date"|name="intervention_id"|name="gallery_url"/);
+        const organisation=templateHtml.match(/data-section-panel="13"[\s\S]*?data-section-panel="12"/)[0];
+        assert.match(organisation,/id="organisation-order-date"[^>]*readonly/);
+        for(const name of ['report_date','intervention_id','author','intervention_followup']) assert.match(organisation,new RegExp(`name="${name}"`));
+        assert.match(organisation,/id="add-followup"/);
         const siteTemplate=templateHtml.match(/data-section-panel="12"[\s\S]*?data-section-panel="2"/)[0];
         assert.match(siteTemplate,/Photo du restaurant extérieur \/ intérieur \/ terrasse/);
         assert.match(siteTemplate,/Image à prendre en mode large/);
         assert.doesNotMatch(siteTemplate,/Photos de cette section|8 Mo maximum/);
         assert.match(siteTemplate,/multiple data-photo-input="1"/);
+        assert.match(siteTemplate,/name="gallery_url"/);
         const getPage=()=>fetch(base+`?id=${report.id}`).then(response=>response.text());
         const initial=await getPage();
         const heading=initial.match(/<section class="editor-heading">([\s\S]*?)<\/section>/)[1];
@@ -184,7 +190,7 @@ test('Real report save and sync persist section validation, preserve legacy stat
         assert.match(initial,/<label class="field field-floating"><input placeholder=" " type="text" name="establishment"[^>]*><span class="field-title">Établissement<\/span>/);
         assert.match(initial,/<label class="field field-floating field-native"><input placeholder=" " type="date"/);
         assert.match(initial,/<textarea placeholder=" " name="context_notes"/);
-        assert.equal((initial.match(/data-section-accordion=/g)||[]).length,12);
+        assert.equal((initial.match(/data-section-accordion=/g)||[]).length,13);
         const information=initial.match(/data-section-accordion="1"([\s\S]*?)<\/details>/)[1];
         const site=initial.match(/data-section-accordion="12"([\s\S]*?)<\/details>/)[1];
         assert.doesNotMatch(information,/location-block|photo-block/);
@@ -198,7 +204,8 @@ test('Real report save and sync persist section validation, preserve legacy stat
             return fetch(base+`?api=save&id=${report.id}`,{method:'POST',body:new URLSearchParams(data)});
         };
         const requestId=randomUUID();
-        const first=await save(1,'[6]',{request_id:requestId,context_notes:'Synthetic saved content',sales_rep_id:'1',sales_rep:'Spoofed name'});
+        const followup=JSON.stringify([{date:'2026-10-07',comment:'Synthetic follow-up <script>escaped</script>'}]);
+        const first=await save(1,'[6,13]',{request_id:requestId,context_notes:'Synthetic saved content',sales_rep_id:'1',sales_rep:'Spoofed name',intervention_followup:followup});
         assert.equal(first.status,200,await first.clone().text());
         assert.equal((await first.json()).revision,2);
         const saved=await getPage();
@@ -208,7 +215,7 @@ test('Real report save and sync persist section validation, preserve legacy stat
         assert.match(saved,/<option value="1" selected>Example Alice<\/option>/);
         const missingPerson=await save(2,'[6]',{sales_rep_id:'999999'});
         assert.equal(missingPerson.status,422);
-        assert.match(saved,/name="completed_sections" value="\[6\]"/);
+        assert.match(saved,/name="completed_sections" value="\[6,13\]"/);
         const retry=await save(1,'[6]',{request_id:requestId});
         assert.equal(retry.status,200);
         assert.equal((await retry.json()).revision,2,'Retry is idempotent');
@@ -218,12 +225,15 @@ test('Real report save and sync persist section validation, preserve legacy stat
         assert.equal(conflictBody.conflict,true);
         assert.match(conflictBody.error,/version locale 1, serveur 2/);
         assert.match(logs,/FoxReport revision conflict; report \d+; local 1; server 2/);
-        assert.match(await getPage(),/name="completed_sections" value="\[6\]"/);
-        const invalid=await save(2,'[13]');
+        assert.match(await getPage(),/name="completed_sections" value="\[6,13\]"/);
+        const invalid=await save(2,'[14]');
         assert.equal(invalid.status,422);
         const legacy=await save(2,undefined);
         assert.equal(legacy.status,200,await legacy.clone().text());
-        assert.match(await getPage(),/name="completed_sections" value="\[6\]"/,'Old clients preserve state');
+        assert.match(await getPage(),/name="completed_sections" value="\[6,13\]"/,'Old clients preserve state');
+        assert.match(await getPage(),/Synthetic follow-up &lt;script&gt;escaped/,'Old clients preserve follow-up');
+        const badFollowup=await save(3,'[]',{intervention_followup:'[{"date":"2026-02-30","comment":"Invalid date"}]'});
+        assert.equal(badFollowup.status,422);
         const unmark=await save(3,'[12]');
         assert.equal(unmark.status,200);
         assert.match(await getPage(),/name="completed_sections" value="\[12\]"/);

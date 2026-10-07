@@ -12,7 +12,8 @@ sectionCheck(completedSections(null) === [], 'Legacy null state starts with no c
 sectionCheck(completedSections('[11,6,6,1]') === [1,6,11], 'Explicit states normalized without field-fill inference');
 sectionCheck(completedSections('[6]') === [6], 'Empty optional section can be explicitly completed');
 sectionCheck(completedSections('[1,12]') === [1,12], 'SITE validation independent of Informations');
-foreach (['invalid', '{}', '{"1":true}', '[0]', '[13]', '["6"]', '[true]', str_repeat(' ', 101)] as $value) {
+sectionCheck(completedSections('[1,13,12]') === [1,12,13], 'Organisation validation independent with stable ID 13');
+foreach (['invalid', '{}', '{"1":true}', '[0]', '[14]', '["6"]', '[true]', str_repeat(' ', 101)] as $value) {
     try {
         completedSections($value);
         throw new LogicException('Invalid state accepted');
