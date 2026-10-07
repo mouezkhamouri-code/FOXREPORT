@@ -23,11 +23,13 @@ test('Real report save and sync persist section validation, preserve legacy stat
         fs.copyFileSync(path.join(root,'index.php'),path.join(directory,'index.php'));
         fs.copyFileSync(path.join(root,'salespeople.php'),path.join(directory,'salespeople.php'));
         fs.copyFileSync(path.join(root,'photo.php'),path.join(directory,'photo.php'));
+        fs.copyFileSync(path.join(root,'report-settings.php'),path.join(directory,'report-settings.php'));
+        fs.mkdirSync(path.join(directory,'storage','private'),{recursive:true});
         if(process.env.FOXREPORT_KEEP_FIXTURE==='1') {
             fs.cpSync(path.join(root,'assets'),path.join(directory,'assets'),{recursive:true});
             for(const name of ['offline.html','sw.js','manifest.webmanifest','version.json','photo.php'])fs.copyFileSync(path.join(root,name),path.join(directory,name));
         }
-        for(const name of ['report-definition.php','images.php','completion.php','sync.php','maps.php','report-list.php','report-delete.php','section-state.php','salespeople.php','photo-state.php','intervention-followup.php','version.php','build-version.php']) {
+        for(const name of ['report-definition.php','images.php','completion.php','sync.php','maps.php','report-list.php','report-delete.php','section-state.php','salespeople.php','photo-state.php','intervention-followup.php','report-branding.php','version.php','build-version.php']) {
             fs.copyFileSync(path.join(root,'app',name),path.join(directory,'app',name));
         }
         fs.writeFileSync(path.join(directory,'app','auth.php'),`<?php
@@ -86,6 +88,25 @@ test('Real report save and sync persist section validation, preserve legacy stat
             }
         }
         assert.ok(ready,logs);
+        const settingsUrl=base.replace('/index.php','/report-settings.php');
+        assert.match(await fetch(settingsUrl).then(response=>response.text()),/Aucun logo configuré/);
+        const logoBytes=execFileSync('php',['-d','extension=php_gd.dll','-r',`$image=imagecreatetruecolor(800,300); imagepng($image);`]);
+        const uploadLogo=async(token,bytes,type='image/png')=>{
+            const data=new FormData();data.set('csrf_token',token);
+            data.set('report_logo',new Blob([bytes],{type}),'logo.png');
+            return fetch(settingsUrl,{method:'POST',redirect:'manual',body:data});
+        };
+        assert.equal((await uploadLogo('wrong',logoBytes)).status,403);
+        const upload=await uploadLogo('synthetic-csrf',logoBytes);
+        assert.equal(upload.status,303,await upload.text());
+        const logoPath=path.join(directory,'storage','private','report-logo.png');
+        assert.ok(fs.existsSync(logoPath));
+        const savedLogo=fs.readFileSync(logoPath);
+        assert.equal((await uploadLogo('synthetic-csrf',Buffer.from('<svg>bad</svg>'),'image/svg+xml')).status,422);
+        assert.deepEqual(fs.readFileSync(logoPath),savedLogo,'Invalid upload preserves the previous logo');
+        const settingsResponse=await fetch(settingsUrl);
+        assert.match(settingsResponse.headers.get('cache-control'),/no-store/);
+        assert.match(await settingsResponse.text(),/data:image\/png;base64,/);
         const directoryUrl=base.replace('/index.php','/salespeople.php');
         const deniedCreate=await fetch(directoryUrl,{method:'POST',body:new URLSearchParams({csrf_token:'wrong',last_name:'Example',first_name:'Alice',email:'alice@example.com'})});
         assert.equal(deniedCreate.status,403);
@@ -161,7 +182,7 @@ test('Real report save and sync persist section validation, preserve legacy stat
         assert.match(templateHtml,/INFORMATIONS COMMERCIALES/);
         assert.doesNotMatch(templateHtml,/class="section-title"|LE LIEU &amp; LES RÉFÉRENCES|Les repères essentiels/);
         const commercial=templateHtml.match(/data-section-panel="1"[\s\S]*?data-section-panel="13"/)[0];
-        const commercialOrder=['establishment','address','contact_name','contact_phone','contact_email','sales_rep_id','order_reference','order_date','customer_id'];
+        const commercialOrder=['establishment','address','postal_code','city','contact_name','contact_phone','contact_email','sales_rep_id','order_reference','order_date','customer_id'];
         let lastPosition=-1;
         for(const field of commercialOrder) {
             const position=commercial.indexOf(field==='report-day-number'?`id="${field}"`:`name="${field}"`);
@@ -205,13 +226,15 @@ test('Real report save and sync persist section validation, preserve legacy stat
         };
         const requestId=randomUUID();
         const followup=JSON.stringify([{date:'2026-10-07',comment:'Synthetic follow-up <script>escaped</script>'}]);
-        const first=await save(1,'[6,13]',{request_id:requestId,context_notes:'Synthetic saved content',sales_rep_id:'1',sales_rep:'Spoofed name',intervention_followup:followup});
+        const first=await save(1,'[6,13]',{request_id:requestId,context_notes:'Synthetic saved content',sales_rep_id:'1',sales_rep:'Spoofed name',intervention_followup:followup,postal_code:'34280',city:'LA GRANDE MOTTE'});
         assert.equal(first.status,200,await first.clone().text());
         assert.equal((await first.json()).revision,2);
         const saved=await getPage();
         assert.match(saved,/report-accordion is-complete" data-section-accordion="6"/);
         assert.match(saved,/Synthetic saved content/);
         assert.match(saved,/name="sales_rep" value="Example Alice"/);
+        assert.match(saved,/name="postal_code" value="34280"/);
+        assert.match(saved,/name="city" value="LA GRANDE MOTTE"/);
         assert.match(saved,/<option value="1" selected>Example Alice<\/option>/);
         const missingPerson=await save(2,'[6]',{sales_rep_id:'999999'});
         assert.equal(missingPerson.status,422);
@@ -232,6 +255,7 @@ test('Real report save and sync persist section validation, preserve legacy stat
         assert.equal(legacy.status,200,await legacy.clone().text());
         assert.match(await getPage(),/name="completed_sections" value="\[6,13\]"/,'Old clients preserve state');
         assert.match(await getPage(),/Synthetic follow-up &lt;script&gt;escaped/,'Old clients preserve follow-up');
+        assert.match(await getPage(),/name="city" value="LA GRANDE MOTTE"/,'Old clients preserve locality');
         const badFollowup=await save(3,'[]',{intervention_followup:'[{"date":"2026-02-30","comment":"Invalid date"}]'});
         assert.equal(badFollowup.status,422);
         const unmark=await save(3,'[12]');

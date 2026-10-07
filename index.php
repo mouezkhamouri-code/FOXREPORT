@@ -153,6 +153,9 @@ function loadPostedReport(array &$errors): array
         'conclusion' => 12000,
     ];
     $data = [];
+    foreach (['postal_code'=>20, 'city'=>190] as $field=>$limit) {
+        if (array_key_exists($field, $_POST)) $data[$field] = scalarPost($field, $limit, $errors);
+    }
     if (array_key_exists('intervention_followup', $_POST)) {
         try { $data['intervention_followup'] = json_encode(interventionFollowup($_POST['intervention_followup']), JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR); }
         catch (RuntimeException $exception) { $errors[] = $exception->getMessage(); }
@@ -854,6 +857,7 @@ if ($isEditor) {
         $columns = $pdo->query('SHOW COLUMNS FROM foxreport_reports')->fetchAll(PDO::FETCH_COLUMN);
         if (!in_array('sales_rep_id', $columns, true)) throw new RuntimeException('Appliquez la migration database/migrations/005-salespeople.sql après sauvegarde.');
         if (!in_array('intervention_followup', $columns, true)) throw new RuntimeException('Appliquez la migration database/migrations/007-intervention-followup.sql après sauvegarde.');
+        if (!in_array('postal_code', $columns, true) || !in_array('city', $columns, true)) throw new RuntimeException('Appliquez la migration database/migrations/008-report-locality.sql après sauvegarde.');
     } catch (PDOException $exception) {
         error_log('FoxReport salespeople schema unavailable; SQLSTATE ' . $exception->getCode());
         $errors[] = 'Appliquez la migration database/migrations/005-salespeople.sql après sauvegarde pour sélectionner un commercial.';
@@ -909,6 +913,7 @@ try {
                 <div data-update-container></div>
                 <a href="offline.html" class="button button-secondary">Brouillons locaux</a>
                 <a href="salespeople.php" class="button button-secondary">Commerciaux</a>
+                <a href="report-settings.php" class="button button-secondary">Paramètres du rapport</a>
                 <a href="rapport.php" class="button button-secondary" target="_blank" rel="noopener">Rapport · modèle vide</a>
                 <form method="post" action="auth.php?action=logout"><input type="hidden" name="csrf_token" value="<?= h(csrfToken()) ?>"><button class="button button-secondary">Déconnexion</button></form>
             </div>
@@ -1003,6 +1008,8 @@ try {
                     <div class="form-grid commercial-row commercial-row-four">
                         <?php inputField($formData, 'establishment', 'Établissement'); ?>
                         <?php inputField($formData, 'address', 'Adresse'); ?>
+                        <?php inputField($formData, 'postal_code', 'Code postal'); ?>
+                        <?php inputField($formData, 'city', 'Ville'); ?>
                         <?php inputField($formData, 'contact_name', 'Contact sur place'); ?>
                         <?php inputField($formData, 'contact_phone', 'Téléphone contact', 'tel', 'tel'); ?>
                         <?php inputField($formData, 'contact_email', 'E-mail contact', 'email', 'email'); ?>

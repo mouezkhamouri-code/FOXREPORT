@@ -5,13 +5,14 @@ require_once __DIR__ . '/report-definition.php';
 require_once __DIR__ . '/images.php';
 require_once __DIR__ . '/maps.php';
 require_once __DIR__ . '/intervention-followup.php';
+require_once __DIR__ . '/report-branding.php';
 
 function pdfEscape(string $text): string
 {
     return htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
-function reportPdfHtml(array $report, array $devices, array $photos, ?string $mapImage = null, string $mapNotice = ''): string
+function reportPdfHtml(array $report, array $devices, array $photos, ?string $mapImage = null, string $mapNotice = '', ?string $logo = null): string
 {
     global $sections, $deviceCategories, $trainingTopics;
     $fields = [
@@ -19,6 +20,7 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
         13 => ['order_date'=>'Date de commande', 'report_date'=>'Date de l’intervention', 'intervention_id'=>'Identifiant intervention', 'author'=>'Rédacteur'],
         1 => [
             'establishment' => 'Établissement', 'address' => 'Adresse',
+            'postal_code'=>'Code postal', 'city'=>'Ville',
             'contact_name' => 'Contact', 'contact_phone' => 'Téléphone', 'contact_email' => 'E-mail',
             'sales_rep' => 'Commercial', 'customer_id' => 'Customer ID', 'order_reference' => 'Référence de commande',
             'order_date' => 'Date de commande',
@@ -55,10 +57,28 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
     if (!is_array($topics)) {
         throw new RuntimeException('La checklist de formation enregistrée est invalide.');
     }
+    $name = trim((string) ($report['establishment'] ?? ''));
+    $locality = trim((string) ($report['postal_code'] ?? '') . ' ' . (string) ($report['city'] ?? ''));
+    $date = (string) ($report['report_date'] ?? '');
+    if ($date !== '') {
+        $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+        if (!$parsed || $parsed->format('Y-m-d') !== $date) throw new RuntimeException('Date d’intervention invalide pour l’en-tête du rapport.');
+        $date = $parsed->format('d/m/Y');
+    }
+    $nameLines = max(1, count(explode("\n", wordwrap($name, 42, "\n", true))));
+    $localityLines = max(1, count(explode("\n", wordwrap($locality, 55, "\n", true))));
+    $headerHeight = max(25, 12 + $nameLines * 6 + $localityLines * 6);
+    $topMargin = $headerHeight + 12;
     $html = '<!doctype html><html lang="fr"><head><meta charset="utf-8"><style>
-        @page { margin: 22mm 17mm 20mm; }
+        @page { margin: ' . $topMargin . 'mm 17mm 20mm; }
         body { font-family: "DejaVu Sans", sans-serif; font-size: 9pt; color: #172033; }
-        header { position: fixed; top: -14mm; left: 0; right: 0; color: #176B75; font-size: 10pt; border-bottom: 1px solid #DCE5E7; padding-bottom: 5mm; }
+        header { position: fixed; top: -' . ($headerHeight + 5) . 'mm; left: 0; right: 0; height: ' . $headerHeight . 'mm; color: #111827; }
+        .report-header-logo { position: absolute; top: 0; left: 0; max-width: 40mm; max-height: 25mm; }
+        .report-header-text { position: absolute; top: 0; left: 46mm; right: 0; }
+        .report-header-text.no-logo { left: 0; }
+        .report-header-title { font-size: 11.5pt; line-height: 1.15; margin-bottom: .8mm; }
+        .report-header-name { font-size: 13.5pt; line-height: 1.15; font-weight: bold; margin-bottom: .8mm; word-wrap: break-word; }
+        .report-header-locality { font-size: 12pt; line-height: 1.15; word-wrap: break-word; }
         .section { page-break-before: always; }
         .section.first { page-break-before: auto; }
         h1 { font-size: 20pt; margin: 0 0 4mm; color: #176B75; }
@@ -70,6 +90,7 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
         th, td { padding: 3mm; border: 1px solid #DCE5E7; vertical-align: top; word-wrap: break-word; }
         th { background: #E5F1F2; text-align: left; font-weight: normal; }
         .fields th { width: 34%; }
+        .quantities th, .quantities td { padding: 2mm 3mm; }
         tr { page-break-inside: avoid; }
         .devices { font-size: 7pt; margin-bottom: 4mm; }
         .devices th, .devices td { padding: 2mm; }
@@ -82,13 +103,18 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
         .location { page-break-inside: avoid; margin: 4mm 0; }
         .location img { width: 176mm; height: 99mm; }
         .check { padding: 2mm 0; }
-    </style></head><body><header>FoxReport · Installation et formation Lightspeed</header>';
+    </style></head><body><header>'
+        . ($logo !== null ? '<img class="report-header-logo" src="' . pdfEscape($logo) . '" alt="Logo du rapport">' : '')
+        . '<div class="report-header-text' . ($logo === null ? ' no-logo' : '') . '"><div class="report-header-title">COMPTE RENDU INSTALLATION FORMATION</div>'
+        . '<div class="report-header-name">' . pdfEscape($name !== '' ? $name : 'Établissement à renseigner') . '</div>'
+        . '<div class="report-header-locality">' . pdfEscape($locality) . ($date !== '' ? ($locality !== '' ? ' &nbsp; ' : '') . 'le ' . pdfEscape($date) : '') . '</div>'
+        . '</div></header>';
     foreach ($sections as $number => $label) {
         $html .= '<section class="section' . ($number === 1 ? ' first' : '') . '">';
         if ($number === 1) {
-            $html .= '<h1>Rapport d’intervention</h1><p class="subtitle">'
+            $html .= '<p class="subtitle">'
                 . ($report === [] ? 'MODÈLE VIDE · Prévisualisation de la mise en page' : (($report['status'] ?? 'draft') === 'finalized' ? 'FINALISÉ' : 'BROUILLON'))
-                . ' · ' . pdfEscape((string) ($report['establishment'] ?? 'Installation et formation Lightspeed')) . '</p>';
+                . '</p>';
         }
         $position = array_search($number, array_keys($sections), true) + 1;
         $html .= '<h2>' . sprintf('%02d', $position) . ' · ' . pdfEscape($label) . '</h2><table class="fields">';
@@ -132,7 +158,7 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
                     $counts[$device['category']]++;
                 }
             }
-            $html .= '<h3>Quantités de matériel</h3><table class="fields">';
+            $html .= '<h3>Quantités de matériel</h3><table class="fields quantities">';
             foreach ($deviceCategories as $category => $name) {
                 $html .= '<tr><th>' . pdfEscape($name) . '</th><td>' . $counts[$category] . '</td></tr>';
             }
@@ -191,7 +217,7 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
     return $html . '</body></html>';
 }
 
-function renderReportPdf(array $report, array $devices, array $photos): Dompdf\Dompdf
+function renderReportPdf(array $report, array $devices, array $photos, ?string $logo = null): Dompdf\Dompdf
 {
     foreach (['dom', 'mbstring', 'gd'] as $extension) {
         if (!extension_loaded($extension)) {
@@ -234,7 +260,7 @@ function renderReportPdf(array $report, array $devices, array $photos): Dompdf\D
             $mapNotice = $exception->getMessage();
         }
     }
-    $pdf->loadHtml(reportPdfHtml($report, $devices, $photos, $mapImage, $mapNotice), 'UTF-8');
+    $pdf->loadHtml(reportPdfHtml($report, $devices, $photos, $mapImage, $mapNotice, $logo ?? reportLogoData()), 'UTF-8');
     $pdf->render();
     $pdf->getCanvas()->page_text(48, 810, 'FoxReport · {PAGE_NUM} / {PAGE_COUNT}', $pdf->getFontMetrics()->getFont('DejaVu Sans'), 8, [0.4, 0.45, 0.55]);
     return $pdf;

@@ -171,6 +171,7 @@ body.pwa-standalone #local-sync-status[role="status"] { display: none; }
 .intervention-followup { margin-top: 24px; }
 .followup-row { padding: 20px; margin-bottom: 20px; border: 1px solid var(--line); border-radius: 10px; background: var(--soft); }
 .followup-row .button { min-height: 48px; font-size: 16px; }
+.report-logo-preview { display: block; max-width: min(100%, 360px); max-height: 160px; object-fit: contain; margin-bottom: 20px; }
 .followup-row time { font-size: 17px; font-weight: 700; color: var(--accent-dark); }
 .followup-comment { margin: 10px 0 16px; font-size: 17px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .followup-dialog .field textarea { min-height: 160px; }

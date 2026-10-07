@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS foxreport_reports (
     completed_sections TEXT NULL,
     establishment VARCHAR(190) NOT NULL DEFAULT '',
     address VARCHAR(500) NOT NULL DEFAULT '',
+    postal_code VARCHAR(20) NOT NULL DEFAULT '',
+    city VARCHAR(190) NOT NULL DEFAULT '',
     latitude DECIMAL(10,7) NULL,
     longitude DECIMAL(10,7) NULL,
     map_zoom TINYINT UNSIGNED NULL,

@@ -4,6 +4,13 @@ FoxReport est une application indépendante de PLANESTO pour saisir, sauvegarder
 
 ## Première installation
 
+### En-tête et logo des rapports
+
+Le menu **Paramètres du rapport** permet aux utilisateurs authentifiés de téléverser un logo commun (JPEG, PNG ou WebP, 8 Mo maximum, 12 mégapixels maximum). Une image composite peut contenir plusieurs logos. Elle est convertie en PNG, limitée à 1 200 pixels, conserve sa transparence et reste dans `storage/private/report-logo.png`, hors Git et inaccessible directement. La page de paramètres nécessite le réseau et n'est pas mise en cache par le service worker. Le remplacement est atomique et protégé par CSRF ; il s'applique aux prochaines générations PDF de tous les rapports, y compris existants.
+
+Chaque page PDF répète le logo à gauche, **COMPTE RENDU INSTALLATION FORMATION**, le nom de l'établissement en gras, puis code postal, ville et date d'intervention au format français. Sans logo, l'en-tête reste disponible avec le texte seul. Code postal et Ville se saisissent dans Informations commerciales et sont conservés dans les brouillons ; les anciens clients n'envoyant pas ces champs ne les effacent pas. Appliquez **une seule fois**, après sauvegarde et inspection des colonnes, `database/migrations/008-report-locality.sql` sur une base existante. Le logo est un fichier privé : aucune migration n'est nécessaire pour lui.
+Le bloc texte commence 6 mm après la largeur maximale de 40 mm du logo ; les trois lignes utilisent un interligne de 1,15 et seulement 0,8 mm d'espacement entre elles. La marge haute réserve la place de l'en-tête, y compris lorsque le nom ou la ville occupent plusieurs lignes.
+
 ### Annuaire des commerciaux
 
 Le menu **Commerciaux** ouvre un annuaire authentifié, en ligne : création de fiches nom, prénom, téléphone facultatif et e-mail obligatoire, avec contrôle CSRF et validation serveur. Les téléphones français sont espacés par paires pendant la saisie et à l'affichage (06 12 45 12 45), y compris pour les anciennes fiches. Un bouton téléphone permet d'appeler depuis la PWA ; les numéros internationaux sont préservés. Le rapport n'affiche que le nom dans son sélecteur. L'identifiant `sales_rep_id` lie le rapport à la fiche pour une utilisation ultérieure de l'e-mail ; aucun message n'est envoyé. `sales_rep` conserve le nom pour les PDF et anciens clients. Les anciens noms libres sont conservés comme « ancien contact », sans rapprochement automatique ambigu.

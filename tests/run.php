@@ -52,6 +52,24 @@ try {
     check($info[2] === IMAGETYPE_JPEG, 'PNG converted to JPEG');
     check($info[0] === 1600 && $info[1] === 800, '1600px bound and aspect ratio preserved');
     check(filesize($normalized) <= FOXREPORT_PHOTO_BYTES, 'Output at most 1 MiB');
+    $logoSource = $directory . DIRECTORY_SEPARATOR . 'logo-source.png';
+    $logoPath = $directory . DIRECTORY_SEPARATOR . 'logo.png';
+    $logoImage = imagecreatetruecolor(1800, 600);
+    imagealphablending($logoImage, false);
+    imagesavealpha($logoImage, true);
+    imagefill($logoImage, 0, 0, imagecolorallocatealpha($logoImage, 255,255,255,127));
+    imagefilledrectangle($logoImage, 20,20,500,580,imagecolorallocate($logoImage,23,107,117));
+    imagepng($logoImage,$logoSource);
+    unset($logoImage);
+    saveReportLogo($logoSource,$logoPath);
+    $logoSize=getimagesize($logoPath);
+    check($logoSize[0]===1200 && $logoSize[1]===400, 'Logo scales to 1200px without changing proportions');
+    $logoImage=imagecreatefrompng($logoPath);
+    check((imagecolorat($logoImage,1199,399)>>24)===127, 'Logo PNG transparency preserved');
+    unset($logoImage);
+    $logoData=reportLogoData($logoPath);
+    check(str_starts_with($logoData,'data:image/png;base64,'), 'Logo embedded as PNG without remote requests');
+    check(reportLogoData($directory . DIRECTORY_SEPARATOR . 'missing-logo.png')===null, 'Missing logo leaves text-only header');
 
     $noiseSource = $directory . DIRECTORY_SEPARATOR . 'noise.jpg';
     $noise = imagecreatetruecolor(1600, 1600);
@@ -169,6 +187,16 @@ try {
     check(str_contains($widePdf->output(), '/Subtype /Image'), 'Full-width 16:9 photo renders in PDF');
     $uncompressed = $widePdf->output(['compress' => 0]);
     check(preg_match('/467\.7[0-9]* 0 0 263\.[0-9]+ [^\r\n]+ cm/', $uncompressed) === 1, 'Rendered wide photo measures 165mm across with proportional 16:9 height');
+    $headerReport=array_replace($report,['establishment'=>'SYNTHETIC RESTAURANT','postal_code'=>'34280','city'=>'LA GRANDE MOTTE','report_date'=>'2026-05-08']);
+    $headerHtml=reportPdfHtml($headerReport,$devices,$photos,null,'',$logoData);
+    check(str_contains($headerHtml,'COMPTE RENDU INSTALLATION FORMATION') && str_contains($headerHtml,'class="report-header-name">SYNTHETIC RESTAURANT'), 'Report header has requested title and bold establishment');
+    check(str_contains($headerHtml,'34280 LA GRANDE MOTTE') && str_contains($headerHtml,'le 08/05/2026'), 'Header includes postal code, city and French intervention date');
+    check(str_contains($headerHtml,'left: 46mm; right: 0;') && substr_count($headerHtml,'margin-bottom: .8mm;')===2, 'Header text sits beside logo with compact 0.8mm vertical spacing');
+    $headerPdf=renderReportPdf($headerReport,$devices,$photos,$logoData);
+    $headerBytes=$headerPdf->output(['compress'=>0]);
+    $restaurantText=mb_convert_encoding('SYNTHETIC RESTAURANT','UTF-16BE','UTF-8');
+    check(substr_count($headerBytes,$restaurantText)>=$headerPdf->getCanvas()->get_page_count(), 'Restaurant header actually rendered on every PDF page');
+    check(str_contains($headerBytes,'/Subtype /Image'), 'Uploaded logo image is rendered in PDF');
     echo "All FoxReport tests passed; no database connection used.\n";
 } finally {
     if ($photoDirectory !== null && is_dir($photoDirectory)) {
