@@ -100,6 +100,9 @@ test('Real report save and sync persist section validation, preserve legacy stat
         assert.doesNotMatch(heading,/eyebrow|rapport\.php|Modifié|class="intro"/);
         assert.ok(initial.indexOf('class="editor-footer panel"')>initial.indexOf('</fieldset>',initial.indexOf('id="report-form"')));
         assert.match(initial,/class="button button-primary report-preview"/);
+        assert.match(initial,/<label class="field field-floating"><input placeholder=" " type="text" name="establishment"[^>]*><span class="field-title">Établissement<\/span>/);
+        assert.match(initial,/<label class="field field-floating field-native"><input placeholder=" " type="date"/);
+        assert.match(initial,/<textarea placeholder=" " name="context_notes"/);
         assert.equal((initial.match(/data-section-accordion=/g)||[]).length,11);
         assert.match(initial,/name="completed_sections" value="\[\]"/);
         const save=async(revision,states,extra={})=>{

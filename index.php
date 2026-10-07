@@ -722,12 +722,13 @@ function selected(array $data, string $key, string $choice): string
 function inputField(array $data, string $name, string $label, string $type = 'text', string $autocomplete = ''): void
 {
     $autocompleteAttribute = $autocomplete !== '' ? ' autocomplete="' . h($autocomplete) . '"' : '';
-    echo '<label class="field"><span>' . h($label) . '</span><input type="' . h($type) . '" name="' . h($name) . '" value="' . h(value($data, $name)) . '"' . $autocompleteAttribute . '></label>';
+    $nativeType = in_array($type, ['date', 'time'], true) ? ' field-native' : '';
+    echo '<label class="field field-floating' . $nativeType . '"><input placeholder=" " type="' . h($type) . '" name="' . h($name) . '" value="' . h(value($data, $name)) . '"' . $autocompleteAttribute . '><span class="field-title">' . h($label) . '</span></label>';
 }
 
 function textareaField(array $data, string $name, string $label, string $hint = ''): void
 {
-    echo '<label class="field"><span>' . h($label) . '</span><textarea name="' . h($name) . '" rows="4">' . h(value($data, $name)) . '</textarea>';
+    echo '<label class="field field-floating"><textarea placeholder=" " name="' . h($name) . '" rows="4">' . h(value($data, $name)) . '</textarea><span class="field-title">' . h($label) . '</span>';
     if ($hint !== '') {
         echo '<small>' . h($hint) . '</small>';
     }
@@ -736,11 +737,11 @@ function textareaField(array $data, string $name, string $label, string $hint = 
 
 function selectField(array $data, string $name, string $label, array $options): void
 {
-    echo '<label class="field"><span>' . h($label) . '</span><select name="' . h($name) . '">';
+    echo '<label class="field field-floating field-native"><select name="' . h($name) . '">';
     foreach ($options as $optionValue => $optionLabel) {
         echo '<option value="' . h((string) $optionValue) . '"' . selected($data, $name, (string) $optionValue) . '>' . h($optionLabel) . '</option>';
     }
-    echo '</select></label>';
+    echo '</select><span class="field-title">' . h($label) . '</span></label>';
 }
 
 function booleanSelect(array $data, string $name, string $label): void
@@ -920,10 +921,9 @@ try {
             <input type="hidden" name="completed_sections" value="<?= h(json_encode($completedSectionState, JSON_THROW_ON_ERROR)) ?>" id="completed-sections">
             <div class="step-controls">
                 <button type="button" class="button button-secondary" id="previous-step">Précédent</button>
-                <span id="step-progress" aria-live="polite">Étape <?= $activeSection ?>/11</span>
+                <span id="step-progress" class="sr-only" aria-live="polite">Étape <?= $activeSection ?>/11</span>
                 <button type="button" class="button button-primary" id="next-step">Suivant</button>
             </div>
-            <p id="sync-state" role="status">Enregistré</p>
             <div id="sync-conflict" class="alert alert-error" hidden>
                 <p>Une autre version existe sur le serveur. Vos saisies locales sont conservées.</p>
                 <button type="button" class="button button-secondary" id="conflict-server">Utiliser la version serveur</button>
@@ -1068,6 +1068,7 @@ try {
                 <?php sectionEnd(11, $isEditable); ?>
             </fieldset>
 
+            <p id="sync-state" role="status">Enregistré</p>
             <?php if ($isEditable): ?>
                 <div class="form-actions">
                     <p><span class="save-dot"></span> Vos saisies sont enregistrées à chaque sauvegarde.</p>
