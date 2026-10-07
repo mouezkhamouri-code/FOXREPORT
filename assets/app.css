@@ -73,7 +73,29 @@ body.pwa-standalone #local-sync-status[role="status"] { display: none; }
 .report-filters { display: flex; gap: 8px; margin-bottom: 20px; }
 .report-filters .is-selected { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-dark); }
 .panel { background: var(--white); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 4px 18px #263b6108; }
-.report-list-panel { overflow: hidden; }
+.report-list-panel { background: transparent; border: 0; box-shadow: none; }
+.report-cards { display: grid; gap: 20px; }
+.report-card { position: relative; display: grid; gap: 10px; padding: 20px; border: 1px solid var(--line); border-radius: 16px; color: var(--ink); box-shadow: 0 3px 12px #1720330a; }
+.report-card-started { background: #FFF1E6; border-color: #F2B38D; }
+.report-card-progress { background: var(--accent-soft); border-color: #97C4C9; }
+.report-card-complete { background: var(--green-soft); border-color: #86BFA0; }
+.report-card-invalid { background: var(--red-soft); border-color: #E9A7A7; }
+.report-card-open { position: absolute; inset: 0; border-radius: inherit; z-index: 1; }
+.report-card-open:focus-visible { outline: 3px solid var(--accent-dark); outline-offset: 4px; }
+.report-card-name { margin: 0; font-size: 24px; line-height: 1.25; font-weight: 750; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.report-card-completion, .report-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+.report-card-completion strong { font-size: 24px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.report-card-completion strong span { font-size: 16px; font-weight: 500; }
+.report-card-completion > span, .report-card-footer > span { font-size: 16px; white-space: nowrap; }
+.report-card-footer .report-actions-open { position: relative; z-index: 2; min-height: 44px; font-size: 16px; }
+.report-actions-dialog { width: min(480px, calc(100% - 32px)); max-height: 90dvh; overflow: auto; padding: 20px; border: 1px solid var(--line); border-radius: 16px; color: var(--ink); background: var(--white); font-size: 17px; }
+.report-actions-dialog::backdrop { background: #17203399; }
+.report-actions-dialog h2 { overflow-wrap: anywhere; font-size: 24px; }
+.report-actions-dialog .button { min-height: 48px; font-size: 17px; width: 100%; }
+.report-actions-dialog .delete-report-form { display: grid; gap: 16px; padding: 20px 0; }
+.report-actions-dialog label { display: flex; align-items: flex-start; gap: 12px; cursor: pointer; }
+.report-actions-dialog input[type="checkbox"] { width: 24px; height: 24px; flex: 0 0 24px; margin-top: 2px; accent-color: var(--red); }
+.report-delete-button { color: var(--red); background: var(--red-soft); border-color: var(--red); }
 .panel-heading { display: flex; justify-content: space-between; align-items: center; padding: 23px 26px 20px; }
 .panel-heading h2 { font-size: 18px; margin: 0; }
 .count-pill { padding: 5px 10px; border-radius: 30px; background: #f0f3f9; color: #66748a; font-size: 12px; font-weight: 700; }
@@ -202,7 +224,7 @@ button:disabled { cursor: not-allowed; opacity: .5; }
     .icon-button { min-width: 44px; }
     .topbar-note { width: auto; }
     .topbar-note { font-size: 11px; }
-    .page-shell { width: calc(100% - 28px); margin: 27px auto 48px; }
+    .page-shell { width: calc(100% - 32px); margin: 27px auto 48px; }
     .page-heading { align-items: flex-start; flex-direction: column; gap: 17px; }
     .new-report-form, .new-report-form .button { width: 100%; }
     .editor-heading { align-items: flex-start; }

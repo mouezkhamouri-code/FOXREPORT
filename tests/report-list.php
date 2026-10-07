@@ -51,3 +51,11 @@ try {
 listCheck(str_contains(renderReportList([]), 'Tout commence ici'), 'Valid empty list displays empty state');
 listCheck(!str_contains(renderReportList([array_replace($reports[0], ['status'=>'finalized'])], '', 'open'), 'index.php?id=1'), 'Open filter excludes finalized reports');
 listCheck(str_contains(renderReportList([array_replace($reports[0], ['status'=>'finalized'])], '', 'closed'), 'index.php?id=1'), 'Closed filter includes finalized reports');
+foreach ([0=>'started',49=>'started',50=>'progress',99=>'progress',100=>'complete'] as $percent=>$tone) {
+    $card=renderReportList([array_replace($reports[0], ['completion'=>['percent'=>$percent,'filled'=>0,'total'=>41]])]);
+    listCheck(str_contains($card, 'report-card-' . $tone) && str_contains($card, $percent . ' %'), 'Exact color threshold and rate at ' . $percent . '%');
+}
+listCheck(substr_count($html, '<article class="report-card ') === 1 && !str_contains($html, '<table'), 'One compact card per report replaces table');
+listCheck(str_contains($html, '<dialog id="report-actions-1"') && str_contains($html, 'aria-haspopup="dialog"')
+    && str_contains($html, 'rapport.php?id=1') && str_contains($html, 'name="confirm_delete" value="1" required'), 'Action popup exposes preview and mandatory deletion checkbox');
+listCheck(str_contains(renderReportList($reports), 'report-card-invalid'), 'Invalid completion has explicit error color');

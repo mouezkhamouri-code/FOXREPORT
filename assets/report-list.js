@@ -29,7 +29,7 @@
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || 'Actualisation des rapports refusée.');
             if (typeof result.html !== 'string') throw new Error('Réponse de liste invalide.');
-            if (!list.querySelector('details[open]') && list.innerHTML !== result.html) list.innerHTML = result.html;
+            if (!list.querySelector('dialog[open]') && !list.contains?.(document.activeElement) && list.innerHTML !== result.html) list.innerHTML = result.html;
             errorPanel.hidden = true;
             errorPanel.textContent = '';
             state.textContent = `Liste à jour · ${new Date().toLocaleTimeString('fr-FR')} · actualisation toutes les 3 secondes`;
@@ -43,6 +43,16 @@
             if (!expired && !document.hidden && navigator.onLine) timer = setTimeout(refresh, 3000);
         }
     }
+    list.addEventListener('click', event=>{
+        const opener=event.target.closest('.report-actions-open');
+        if (opener) {
+            const dialog=document.getElementById(opener.dataset.dialog);
+            if (dialog) dialog.showModal();
+            return;
+        }
+        const closer=event.target.closest('.report-actions-close');
+        if (closer) closer.closest('dialog').close();
+    });
     list.addEventListener('submit', async event => {
         const form = event.target.closest('.delete-report-form');
         if (!form) return;
@@ -72,7 +82,11 @@
             }
             if (result.warning) alert(result.warning);
             state.textContent = 'Rapport supprimé.';
-            form.closest('details')?.removeAttribute('open');
+            const dialog=form.closest('dialog');
+            const card=form.closest('.report-card');
+            dialog?.close();
+            card?.querySelector('.report-card-open')?.focus();
+            card?.remove();
         } catch (error) {
             alert(`Suppression : ${error.message}`);
         } finally {

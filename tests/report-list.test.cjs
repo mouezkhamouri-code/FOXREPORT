@@ -105,3 +105,33 @@ test('Delete command requires confirmation, handles conflicts and removes the lo
     await events.submit(event);
     assert.deepEqual(removed,['test-user:7'],'Deleting server report preserves the resolved local archive');
 });
+test('Actions opens and closes native popup without navigating; polling preserves open popup and focused card',async()=>{
+    const events={};
+    let scheduled,open=false,focused=false,shows=0,closes=0;
+    const dialog={showModal:()=>{open=true;shows++;},close:()=>{open=false;closes++;}};
+    const list={innerHTML:'original',dataset:{filter:'all'},querySelector:selector=>selector==='dialog[open]' && open?dialog:null,
+        contains:()=>focused,addEventListener:(name,fn)=>{events[name]=fn;}};
+    const elements={'#live-report-list':list,'#report-list-state':{},'#report-list-error':{}};
+    const context={document:{hidden:false,querySelector:selector=>elements[selector],getElementById:id=>{assert.equal(id,'report-actions-7');return dialog;},addEventListener:()=>{}},
+        window:{addEventListener:()=>{}},navigator:{onLine:true},AbortController,Date,
+        setTimeout:(fn,ms)=>{if(ms===3000)scheduled=fn;return 1;},clearTimeout:()=>{},
+        fetch:async()=>({ok:true,status:200,json:async()=>({html:'updated'})})};
+    vm.runInNewContext(fs.readFileSync('assets/report-list.js','utf8'),context);
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(list.innerHTML,'updated');
+    events.click({target:{closest:selector=>selector==='.report-actions-open'?{dataset:{dialog:'report-actions-7'}}:null}});
+    assert.equal(shows,1);
+    list.innerHTML='preserved popup';
+    await scheduled();assert.equal(list.innerHTML,'preserved popup');
+    events.click({target:{closest:selector=>selector==='.report-actions-close'?{closest:()=>dialog}:null}});
+    assert.equal(closes,1);
+    focused=true;await scheduled();assert.equal(list.innerHTML,'preserved popup');
+    focused=false;await scheduled();assert.equal(list.innerHTML,'updated');
+});
+test('Card layout uses exact requested spacing and keeps refresh status off the visual layout',()=>{
+    const css=fs.readFileSync('assets/app.css','utf8');
+    assert.match(css,/\.report-cards \{[^}]*gap: 20px;/);
+    assert.match(css,/\.report-card \{[^}]*padding: 20px;/);
+    assert.match(css,/\.page-shell \{ width: calc\(100% - 32px\);/);
+    assert.match(fs.readFileSync('index.php','utf8'),/id="report-list-state" class="sr-only"/);
+});

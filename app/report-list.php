@@ -57,43 +57,47 @@ function renderReportList(array $reports, string $csrfToken = '', string $filter
     <?php if ($reports === []): ?>
         <div class="empty-state"><div class="empty-icon">＋</div><h3><?= $filter === 'all' ? 'Tout commence ici' : 'Aucun rapport ' . ($filter === 'open' ? 'ouvert' : 'clôturé') ?></h3><p>Changez de filtre ou créez un nouveau rapport.</p></div>
     <?php else: ?>
-        <div class="table-wrap"><table class="report-table">
-            <thead><tr><th>Établissement</th><th>Date</th><th>Type</th><th>Statut</th><th>Remplissage</th><th><span class="sr-only">Ouvrir</span></th><th>Suppression</th></tr></thead>
-            <tbody>
+        <div class="report-cards">
             <?php foreach ($reports as $row): ?>
-                <tr>
-                    <td data-label="Établissement"><strong><?= reportListEscape($row['establishment'] !== '' ? $row['establishment'] : 'Établissement à renseigner') ?></strong></td>
-                    <td data-label="Date"><?= reportListEscape($row['report_date'] ?: '—') ?></td>
-                    <td data-label="Type"><?= reportListEscape($row['report_type']) ?></td>
-                    <td data-label="Statut"><span class="status-badge <?= $row['status'] === 'finalized' ? 'status-final' : 'status-draft' ?>"><span></span><?= $row['status'] === 'finalized' ? 'Clôturé' : 'Ouvert' ?></span></td>
-                    <td data-label="Remplissage">
+                <?php
+                $name = $row['establishment'] !== '' ? $row['establishment'] : 'Établissement à renseigner';
+                $percent = $row['completion']['percent'] ?? null;
+                $tone = $percent === null ? 'invalid' : ($percent === 100 ? 'complete' : ($percent >= 50 ? 'progress' : 'started'));
+                $dialogId = 'report-actions-' . (int) $row['id'];
+                ?>
+                <article class="report-card report-card-<?= $tone ?>">
+                    <a class="report-card-open" href="index.php?id=<?= (int) $row['id'] ?>" aria-label="Ouvrir le rapport : <?= reportListEscape($name) ?>"><span class="sr-only">Ouvrir</span></a>
+                    <h3 class="report-card-name" title="<?= reportListEscape($name) ?>"><?= reportListEscape($name) ?></h3>
+                    <div class="report-card-completion">
                         <?php if ($row['completion'] === null): ?>
-                            <span role="alert">Remplissage indisponible : checklist invalide, à corriger dans ce rapport.</span>
+                            <strong role="alert" title="Remplissage indisponible : checklist invalide, à corriger dans ce rapport.">Remplissage indisponible</strong>
                         <?php else: ?>
-                            <div class="report-completion">
-                                <span class="completion-label"><?= $row['completion']['percent'] ?> % <small><?= $row['completion']['filled'] ?>/<?= $row['completion']['total'] ?> champs</small></span>
-                                <progress value="<?= $row['completion']['filled'] ?>" max="<?= $row['completion']['total'] ?>" aria-label="Remplissage du rapport : <?= $row['completion']['percent'] ?> %"><?= $row['completion']['percent'] ?> %</progress>
-                            </div>
+                            <strong><?= $percent ?> % <span>rempli</span></strong>
                         <?php endif; ?>
-                    </td>
-                    <td class="table-action"><a class="button button-secondary button-small" href="index.php?id=<?= (int) $row['id'] ?>">Ouvrir <span aria-hidden="true">→</span></a></td>
-                    <td>
-                        <details class="actions-menu"><summary class="button button-secondary button-small">Actions</summary><div class="actions-content">
-                        <a class="button button-secondary" href="rapport.php?id=<?= (int) $row['id'] ?>" target="_blank" rel="noopener">Prévisualiser le PDF</a>
+                        <span><?= $row['status'] === 'finalized' ? 'Clôturé' : 'Ouvert' ?></span>
+                    </div>
+                    <div class="report-card-footer">
+                        <span><?= reportListEscape($row['report_date'] ?: 'Date à renseigner') ?></span>
+                        <button type="button" class="button button-secondary report-actions-open" data-dialog="<?= $dialogId ?>" aria-haspopup="dialog" aria-controls="<?= $dialogId ?>" aria-label="Actions du rapport : <?= reportListEscape($name) ?>">Actions</button>
+                    </div>
+                    <dialog id="<?= $dialogId ?>" class="report-actions-dialog" aria-labelledby="<?= $dialogId ?>-title">
+                        <h2 id="<?= $dialogId ?>-title"><?= reportListEscape($name) ?></h2>
+                        <p>Actions du rapport #<?= (int) $row['id'] ?></p>
+                        <?php if ($row['completion'] === null): ?><p role="alert">Remplissage indisponible : checklist invalide, à corriger dans ce rapport.</p><?php endif; ?>
+                        <a class="button button-primary" href="rapport.php?id=<?= (int) $row['id'] ?>" target="_blank" rel="noopener">Prévisualiser</a>
                         <form method="post" action="index.php" class="delete-report-form">
                             <input type="hidden" name="csrf_token" value="<?= reportListEscape($csrfToken) ?>">
                             <input type="hidden" name="report_id" value="<?= (int) $row['id'] ?>">
                             <input type="hidden" name="revision" value="<?= (int) $row['revision'] ?>">
                             <input type="hidden" name="action" value="delete">
-                            <label><input type="checkbox" name="confirm_delete" value="1" required> Confirmer</label>
-                            <button class="button button-secondary button-small" type="submit" aria-label="Supprimer le rapport <?= (int) $row['id'] ?>">Supprimer</button>
+                            <label><input type="checkbox" name="confirm_delete" value="1" required> Je confirme la suppression du rapport et de ses photos pour toute l’équipe.</label>
+                            <button class="button report-delete-button" type="submit" aria-label="Supprimer le rapport <?= (int) $row['id'] ?>">Supprimer</button>
                         </form>
-                        </div></details>
-                    </td>
-                </tr>
+                        <button type="button" class="button button-secondary report-actions-close">Fermer</button>
+                    </dialog>
+                </article>
             <?php endforeach; ?>
-            </tbody>
-        </table></div>
+        </div>
     <?php endif; ?>
     <?php
     return (string) ob_get_clean();

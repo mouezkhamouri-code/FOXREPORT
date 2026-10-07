@@ -887,7 +887,7 @@ try {
                 <a class="button button-secondary <?= $listFilter === $filter ? 'is-selected' : '' ?>" href="index.php?filter=<?= h($filter) ?>" <?= $listFilter === $filter ? 'aria-current="page"' : '' ?>><?= h($label) ?></a>
             <?php endforeach; ?>
         </nav>
-        <p id="report-list-state" role="status">Actualisation automatique toutes les 3 secondes lorsque cette page est visible.</p>
+        <p id="report-list-state" class="sr-only" role="status"></p>
         <div id="report-list-error" class="alert alert-error" role="alert" <?= $listError === '' ? 'hidden' : '' ?>><?= h($listError) ?></div>
         <section class="panel report-list-panel" id="live-report-list" data-filter="<?= h($listFilter) ?>">
             <?php if ($listError !== ''): ?>
