@@ -25,6 +25,10 @@ button { cursor: pointer; }
 a { color: inherit; }
 
 .topbar { height: 72px; background: var(--white); border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; padding: 0 max(24px, calc((100vw - 1200px) / 2)); }
+body[data-connection-state] .topbar { position: relative; }
+body[data-connection-state] .topbar::after { content: ""; position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background: #F97316; }
+body[data-connection-state="synced"] .topbar::after { background: var(--green); }
+body[data-connection-state="error"] .topbar::after { background: var(--red); }
 .brand { display: inline-flex; align-items: center; gap: 11px; color: var(--ink); font-size: 20px; font-weight: 760; letter-spacing: -.7px; text-decoration: none; }
 .brand > span:last-child > span { color: var(--accent-dark); }
 .brand-logo { width: 44px; height: 44px; flex: 0 0 44px; object-fit: contain; }

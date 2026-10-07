@@ -821,6 +821,7 @@ try {
     <script src="<?= h(foxAsset('assets/update.js')) ?>" defer></script>
     <script src="<?= h(foxAsset('assets/local-store.js')) ?>" defer></script>
     <script src="<?= h(foxAsset('assets/sync-client.js')) ?>" defer></script>
+    <script src="<?= h(foxAsset('assets/connection.js')) ?>" defer></script>
     <script src="<?= h(foxAsset('assets/app.js')) ?>" defer></script>
     <script src="<?= h(foxAsset('assets/photos.js')) ?>" defer></script>
     <script src="<?= h(foxAsset('assets/scanner.js')) ?>" defer></script>

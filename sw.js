@@ -1,8 +1,8 @@
 'use strict';
-const VERSION = 'foxreport-shell-fcbec6a6791859c0';
+const VERSION = 'foxreport-shell-a34c5b54a2d4944e';
 const FILES = [
     'offline.html','manifest.webmanifest','assets/app.css','assets/app.js','assets/local-store.js',
-    'assets/pwa.js','assets/offline.js','assets/photos.js','assets/scanner.js','assets/location.js','assets/report-list.js','assets/install.js','assets/sync-client.js','assets/update.js',
+    'assets/pwa.js','assets/offline.js','assets/photos.js','assets/scanner.js','assets/location.js','assets/report-list.js','assets/install.js','assets/sync-client.js','assets/connection.js','assets/update.js',
     'assets/icons/icon-192.png','assets/icons/icon-512.png','assets/icons/icon-maskable.png',
     'assets/icons/apple-touch-icon.png','assets/icons/favicon.ico','assets/icons/favicon-32.png',
     'assets/ocr/worker.min.js','assets/ocr/eng.traineddata.gz',
