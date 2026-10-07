@@ -896,7 +896,6 @@ try {
                 <?= renderReportList($list, csrfToken(), $listFilter) ?>
             <?php endif; ?>
         </section>
-        <p class="field-note">Remplissage calculé sur les <?= count(FOXREPORT_COMPLETION_FIELDS) ?> champs sauvegardés des 11 sections, hors photos et détails des appareils. La checklist de formation compte pour un champ dès qu’un thème est coché. Une réponse « Non » ou une valeur zéro compte comme renseignée.</p>
 
     <?php else: ?>
         <section class="editor-heading">

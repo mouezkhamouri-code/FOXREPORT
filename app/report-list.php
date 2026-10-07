@@ -53,7 +53,6 @@ function renderReportList(array $reports, string $csrfToken = '', string $filter
         $filter === 'all' || ($filter === 'closed' ? $report['status'] === 'finalized' : $report['status'] === 'draft')));
     ob_start();
     ?>
-    <div class="panel-heading"><div><p class="eyebrow">ARCHIVE</p><h2>Interventions récentes</h2></div><span class="count-pill"><?= count($reports) ?> rapport<?= count($reports) > 1 ? 's' : '' ?></span></div>
     <?php if ($reports === []): ?>
         <div class="empty-state"><div class="empty-icon">＋</div><h3><?= $filter === 'all' ? 'Tout commence ici' : 'Aucun rapport ' . ($filter === 'open' ? 'ouvert' : 'clôturé') ?></h3><p>Changez de filtre ou créez un nouveau rapport.</p></div>
     <?php else: ?>

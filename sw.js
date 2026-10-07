@@ -1,5 +1,5 @@
 'use strict';
-const VERSION = 'foxreport-shell-0cf0d16458f3f2cc';
+const VERSION = 'foxreport-shell-b8cf0919aae84ec1';
 const FILES = [
     'offline.html','manifest.webmanifest','assets/app.css','assets/app.js','assets/local-store.js',
     'assets/pwa.js','assets/offline.js','assets/photos.js','assets/scanner.js','assets/location.js','assets/report-list.js','assets/install.js','assets/sync-client.js','assets/connection.js','assets/update.js',

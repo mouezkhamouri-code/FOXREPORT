@@ -134,4 +134,5 @@ test('Card layout uses exact requested spacing and keeps refresh status off the 
     assert.match(css,/\.report-card \{[^}]*padding: 20px;/);
     assert.match(css,/\.page-shell \{ width: calc\(100% - 32px\);/);
     assert.match(fs.readFileSync('index.php','utf8'),/id="report-list-state" class="sr-only"/);
+    assert.doesNotMatch(fs.readFileSync('index.php','utf8'),/Remplissage calculé sur les/);
 });
