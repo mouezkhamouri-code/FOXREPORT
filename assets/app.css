@@ -46,6 +46,12 @@ body[data-connection-state="error"] .topbar::before { background: var(--red); co
 .page-shell { width: min(1200px, calc(100% - 48px)); margin: 44px auto 72px; min-height: 60vh; }
 .page-heading, .editor-heading { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; margin-bottom: 28px; }
 .editor-heading { align-items: center; margin: 22px 0 26px; }
+.editor-footer { padding: 20px; margin-top: 20px; }
+.editor-footer-actions { display: flex; gap: 16px; flex-wrap: wrap; }
+.editor-footer .button, .form-actions .button { min-height: 48px; font-size: 17px; }
+.editor-heading .status-badge { font-size: 15px; }
+.editor-footer .report-meta { font-size: 16px; overflow-wrap: anywhere; }
+.report-preview[aria-disabled="true"] { opacity: .65; cursor: not-allowed; }
 .editor-tools, .new-report-form { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .eyebrow { margin: 0 0 7px; color: #74829a; font-size: 10px; font-weight: 800; letter-spacing: 1.45px; }
 h1, h2, h3, p { margin-top: 0; }
@@ -230,6 +236,8 @@ button:disabled { cursor: not-allowed; opacity: .5; }
     .editor-heading { align-items: flex-start; }
     .editor-heading { flex-direction: column; gap: 12px; }
     .editor-tools { align-items: flex-start; flex-direction: column; }
+    .editor-footer-actions { flex-direction: column; }
+    .editor-footer-actions .button { width: 100%; }
     .editor-heading .status-badge { margin-top: 6px; }
     .panel-heading { padding: 18px 16px; }
     .report-table thead { display: none; }

@@ -20,9 +20,12 @@
             document.querySelector('[name="revision"]').value=String(report.revision);
             document.querySelector('#report-form').action=`index.php?id=${report.serverId || report.id}`;
             document.querySelector('.editor-heading h1').textContent=report.title;
-            document.querySelector('.editor-heading .intro').textContent=report.serverId
+            document.querySelector('.report-meta').textContent=report.serverId
                 ? `Rapport #${report.serverId} · copie enregistrée sur cet appareil`
                 : 'Brouillon local · enregistré sur cet appareil';
+            const badge=document.querySelector('.editor-heading .status-badge');
+            badge.className=`status-badge ${report.status==='finalized'?'status-final':'status-draft'}`;
+            badge.textContent=report.status==='finalized'?'Finalisé':'Brouillon';
             if(report.status==='finalized') {
                 document.querySelector('#report-form fieldset').disabled=true;
                 const actions=document.querySelector('.form-actions');
@@ -32,9 +35,13 @@
                 link.textContent='Rapport clôturé · rouvrir en ligne';
                 actions.append(link);
             }
-            document.querySelectorAll('.editor-tools a').forEach(link=>{
-                link.href=report.serverId?`rapport.php?id=${report.serverId}`:'rapport.php';
-            });
+            const preview=document.querySelector('.report-preview');
+            if(report.serverId) preview.href=`rapport.php?id=${report.serverId}`;
+            else {
+                preview.removeAttribute('href');
+                preview.setAttribute('aria-disabled','true');
+                preview.textContent='Prévisualisation après synchronisation';
+            }
             for(const file of ['assets/app.js','assets/photos.js','assets/scanner.js','assets/location.js','assets/pwa.js']) {
                 await new Promise((resolve,reject)=>{
                     const script=document.createElement('script');

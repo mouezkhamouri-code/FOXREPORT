@@ -193,6 +193,12 @@
             await saving;
             local=await FoxLocal.get(key);
             form.elements.revision.value=String(local.revision);
+            const preview=document.querySelector('.report-preview');
+            if (preview && local.serverId) {
+                preview.href=`rapport.php?id=${local.serverId}`;
+                preview.removeAttribute('aria-disabled');
+                preview.textContent='Prévisualiser le rapport';
+            }
             const savedIds=new Set((local.savedPhotos||[]).map(photo=>photo.id));
             const acknowledged=(window.FoxPhotos?.get()||[]).filter(photo=>savedIds.has(photo.id));
             window.FoxPhotos?.acknowledge(acknowledged);

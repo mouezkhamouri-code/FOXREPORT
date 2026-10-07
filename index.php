@@ -899,19 +899,14 @@ try {
         <p class="field-note">Remplissage calculé sur les <?= count(FOXREPORT_COMPLETION_FIELDS) ?> champs sauvegardés des 11 sections, hors photos et détails des appareils. La checklist de formation compte pour un champ dès qu’un thème est coché. Une réponse « Non » ou une valeur zéro compte comme renseignée.</p>
 
     <?php else: ?>
-        <a class="back-link" href="index.php"><span aria-hidden="true">←</span> Tous les rapports</a>
         <section class="editor-heading">
             <div>
-                <p class="eyebrow">INSTALLATION &amp; FORMATION LIGHTSPEED</p>
                 <h1><?= h($formData['establishment'] ?? '') ?: 'Nouveau rapport' ?></h1>
-                <p class="intro">Rapport #<?= (int) $report['id'] ?> · Modifié <?= h((string) $report['updated_at']) ?></p>
             </div>
             <div class="editor-tools">
-                <a class="button button-secondary" href="rapport.php?id=<?= (int) $report['id'] ?>" target="_blank" rel="noopener">Rapport · prévisualiser le PDF</a>
                 <span class="status-badge <?= $report['status'] === 'finalized' ? 'status-final' : 'status-draft' ?>"><span></span><?= $report['status'] === 'finalized' ? 'Finalisé' : 'Brouillon' ?></span>
             </div>
         </section>
-        <p class="field-note">Le PDF affiche les données et photos enregistrées. Enregistrez vos modifications avant de le prévisualiser.</p>
 
         <?php if ($errors !== []): ?>
             <div class="alert alert-error" role="alert"><strong>La sauvegarde nécessite votre attention.</strong><?php foreach (array_unique($errors) as $error): ?><p><?= h($error) ?></p><?php endforeach; ?></div>
@@ -1083,6 +1078,14 @@ try {
                 <div class="form-actions"><p>Ce rapport est finalisé. Rouvrez-le pour le compléter ou le corriger.</p><button class="button button-primary" type="submit" name="action" value="reopen">Rouvrir pour modification</button></div>
             <?php endif; ?>
         </form>
+        <section class="editor-footer panel">
+            <p class="report-meta">Rapport #<?= (int) $report['id'] ?> · Modifié <?= h((string) $report['updated_at']) ?></p>
+            <p class="field-note">La prévisualisation affiche les données et photos enregistrées. Synchronisez vos modifications avant de l’ouvrir.</p>
+            <div class="editor-footer-actions">
+                <a class="button button-primary report-preview" href="rapport.php?id=<?= (int) $report['id'] ?>" target="_blank" rel="noopener">Prévisualiser le rapport</a>
+                <a class="button button-secondary" href="index.php">Tous les rapports</a>
+            </div>
+        </section>
     <?php endif; ?>
 </main>
 <footer class="site-footer"><span>FoxReport</span><span>Rapports d’intervention · Installation &amp; formation Lightspeed</span></footer>

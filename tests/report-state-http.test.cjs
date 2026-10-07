@@ -94,6 +94,12 @@ test('Real report save and sync persist section validation, preserve legacy stat
         assert.match((await template.json()).html,/data-section-accordion="11"/);
         const getPage=()=>fetch(base+`?id=${report.id}`).then(response=>response.text());
         const initial=await getPage();
+        const heading=initial.match(/<section class="editor-heading">([\s\S]*?)<\/section>/)[1];
+        assert.match(heading,/<h1>/);
+        assert.match(heading,/Brouillon/);
+        assert.doesNotMatch(heading,/eyebrow|rapport\.php|Modifié|class="intro"/);
+        assert.ok(initial.indexOf('class="editor-footer panel"')>initial.indexOf('</fieldset>',initial.indexOf('id="report-form"')));
+        assert.match(initial,/class="button button-primary report-preview"/);
         assert.equal((initial.match(/data-section-accordion=/g)||[]).length,11);
         assert.match(initial,/name="completed_sections" value="\[\]"/);
         const save=async(revision,states,extra={})=>{
