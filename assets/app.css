@@ -86,11 +86,14 @@ body.pwa-standalone #local-sync-status[role="status"] { display: none; }
 .report-card-progress { background: var(--accent-soft); border-color: #97C4C9; }
 .report-card-complete { background: var(--green-soft); border-color: #86BFA0; }
 .report-card-invalid { background: var(--red-soft); border-color: #E9A7A7; }
-.report-card-open { position: absolute; inset: 0; border-radius: inherit; z-index: 1; }
+.report-card-open { flex: 1; min-width: 0; }
 .report-card-open:focus-visible { outline: 3px solid var(--accent-dark); outline-offset: 4px; }
 .report-card-name { margin: 0; font-size: 24px; line-height: 1.25; font-weight: 750; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.report-card-address, .report-card-contact { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 17px; line-height: 1.4; overflow-wrap: anywhere; }
-.report-card-address a, .report-card-contact a { position: relative; z-index: 2; display: inline-flex; align-items: center; min-height: 44px; text-underline-offset: 3px; }
+.report-card-address, .report-card-contact { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 17px; line-height: 1.4; overflow-wrap: anywhere; padding: 12px; border-radius: 10px; }
+.report-card-address { background: #FFFFFF; border: 1px solid #97C4C9; }
+.report-card-contact { background: #FFF1E6; border: 1px solid #F2B38D; }
+.report-card-address a, .report-card-contact a { display: inline-flex; align-items: center; min-height: 44px; text-decoration: none; }
+.report-card-address a:focus-visible, .report-card-contact a:focus-visible { outline: 3px solid var(--accent-dark); outline-offset: 3px; border-radius: 4px; }
 .report-card-address a { color: var(--accent-dark); }
 .report-card-address > a:first-child { flex: 1 1 180px; }
 .report-card-waze { padding: 0 10px; border: 1px solid currentColor; border-radius: 8px; }
@@ -100,7 +103,8 @@ body.pwa-standalone #local-sync-status[role="status"] { display: none; }
 .report-card-completion strong { font-size: 24px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .report-card-completion strong span { font-size: 16px; font-weight: 500; }
 .report-card-completion > span, .report-card-footer > span { font-size: 16px; white-space: nowrap; }
-.report-card-footer .report-actions-open { position: relative; z-index: 2; min-height: 44px; font-size: 16px; }
+.report-card-date { font-size: 16px; }
+.report-card-footer .button { min-height: 48px; font-size: 17px; }
 .report-actions-dialog { width: min(480px, calc(100% - 32px)); max-height: 90dvh; overflow: auto; padding: 20px; border: 1px solid var(--line); border-radius: 16px; color: var(--ink); background: var(--white); font-size: 17px; }
 .report-actions-dialog::backdrop { background: #17203399; }
 .report-actions-dialog h2 { overflow-wrap: anywhere; font-size: 24px; }

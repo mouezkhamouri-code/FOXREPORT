@@ -65,7 +65,6 @@ function renderReportList(array $reports, string $csrfToken = '', string $filter
                 $dialogId = 'report-actions-' . (int) $row['id'];
                 ?>
                 <article class="report-card report-card-<?= $tone ?>">
-                    <a class="report-card-open" href="index.php?id=<?= (int) $row['id'] ?>" aria-label="Ouvrir le rapport : <?= reportListEscape($name) ?>"><span class="sr-only">Ouvrir</span></a>
                     <h3 class="report-card-name" title="<?= reportListEscape($name) ?>"><?= reportListEscape($name) ?></h3>
                     <?php
                     $address = trim((string) ($row['address'] ?? ''));
@@ -98,8 +97,9 @@ function renderReportList(array $reports, string $csrfToken = '', string $filter
                         <?php endif; ?>
                         <span><?= $row['status'] === 'finalized' ? 'Clôturé' : 'Ouvert' ?></span>
                     </div>
+                    <span class="report-card-date"><?= reportListEscape($row['report_date'] ?: 'Date à renseigner') ?></span>
                     <div class="report-card-footer">
-                        <span><?= reportListEscape($row['report_date'] ?: 'Date à renseigner') ?></span>
+                        <a class="button button-primary report-card-open" href="index.php?id=<?= (int) $row['id'] ?>" aria-label="Ouvrir le rapport : <?= reportListEscape($name) ?>">OUVRIR</a>
                         <button type="button" class="button button-secondary report-actions-open" data-dialog="<?= $dialogId ?>" aria-haspopup="dialog" aria-controls="<?= $dialogId ?>" aria-label="Actions du rapport : <?= reportListEscape($name) ?>">Actions</button>
                     </div>
                     <dialog id="<?= $dialogId ?>" class="report-actions-dialog" aria-labelledby="<?= $dialogId ?>-title">

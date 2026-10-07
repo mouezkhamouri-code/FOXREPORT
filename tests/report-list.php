@@ -35,6 +35,8 @@ listCheck(isset($reports[0]['address'], $reports[0]['contact_name'], $reports[0]
 $html = renderReportList($reports);
 listCheck(str_contains($html, '&lt;script&gt;TEST&lt;/script&gt;') && !str_contains($html, '<script>'), 'Report title safely escaped');
 listCheck(str_contains($html, 'index.php?id=1'), 'Report remains reopenable');
+listCheck(str_contains($html, 'class="button button-primary report-card-open"') && str_contains($html, '>OUVRIR</a>')
+    && strpos($html, '>OUVRIR</a>') < strpos($html, '>Actions</button>'), 'Explicit wide Open button precedes Actions; card has no overlay link');
 listCheck(!str_contains($html, 'ARCHIVE') && !str_contains($html, 'Interventions récentes') && !str_contains($html, 'count-pill'), 'List displays cards without redundant heading or count');
 listCheck(str_contains(renderReportList($reports, 'test-token'), 'value="test-token"')
     && str_contains($html, 'name="revision" value="3"')
