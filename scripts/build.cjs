@@ -19,7 +19,7 @@ async function build() {
         if (name) fs.copyFileSync(path.join(directory,name),path.join(licenses,dependency.replace(/[\/@]/g,'_')+'-LICENSE'));
     }
     fs.copyFileSync(require.resolve('tesseract.js/dist/worker.min.js'), path.join(target, 'worker.min.js'));
-    for (const name of fs.readdirSync('node_modules\\tesseract.js-core')) {
+    for (const name of fs.readdirSync(path.join('node_modules','tesseract.js-core'))) {
         if (/\.wasm(?:\.js)?$/.test(name)) {
             fs.copyFileSync(path.join('node_modules', 'tesseract.js-core', name), path.join(target, name));
         }
@@ -30,7 +30,7 @@ async function build() {
         if (!response.ok) throw new Error(`OCR language download failed: ${response.status}`);
         fs.writeFileSync(language, Buffer.from(await response.arrayBuffer()));
     }
-    const files = ['offline.html','manifest.webmanifest','index.php','auth.php','scripts\\build.cjs'];
+    const files = ['offline.html','manifest.webmanifest','index.php','auth.php','scripts/build.cjs'];
     function addAssets(directory) {
         for (const entry of fs.readdirSync(directory,{withFileTypes:true})) {
             const filename = path.join(directory,entry.name);
@@ -46,7 +46,7 @@ async function build() {
         const data=file==='offline.html'
             ? fs.readFileSync(file,'utf8').replace(/\?v=[a-z0-9-]+/g,'').replace(/data-app-version="[^"]*"/,'data-app-version=""')
             :fs.readFileSync(file);
-        hash.update(file).update(data);
+        hash.update(file.split(path.sep).join('/')).update(data);
     }
     hash.update(fs.readFileSync('sw.js','utf8').replace(/const VERSION = '[^']+';/,"const VERSION = '';"));
     const version='foxreport-shell-'+hash.digest('hex').slice(0,16);

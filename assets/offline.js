@@ -3,9 +3,10 @@
     try {
         const user=localStorage.getItem('foxreport-user');
         if(!user) throw new Error('Connectez-vous en ligne une première fois pour préparer FoxReport sur cet appareil.');
-        const reports=(await FoxLocal.all()).filter(report=>report.user===user);
+        const reports=(await FoxLocal.all()).filter(report=>report.user===user && !report.localDeleted);
         const requested=new URLSearchParams(location.search).get('id');
         if(requested) {
+            const shellVersion=document.body.dataset.appVersion;
             const report=reports.find(item=>String(item.id)===requested);
             if(!report) throw new Error('Ce rapport n’est pas disponible sur cet appareil.');
             const template=await FoxLocal.getTemplate(user);
@@ -14,6 +15,7 @@
             document.dispatchEvent(new Event('fox-page-restored'));
             document.body.dataset.user=user;
             document.body.dataset.localSnapshot='true';
+            if (shellVersion) document.body.dataset.appVersion=shellVersion;
             document.querySelector('[name="report_id"]').value=report.id;
             document.querySelector('[name="revision"]').value=String(report.revision);
             document.querySelector('#report-form').action=`index.php?id=${report.serverId || report.id}`;
@@ -36,7 +38,7 @@
             for(const file of ['assets/app.js','assets/photos.js','assets/scanner.js','assets/location.js','assets/pwa.js']) {
                 await new Promise((resolve,reject)=>{
                     const script=document.createElement('script');
-                    const version=document.documentElement.dataset.appVersion;
+                    const version=document.body.dataset.appVersion;
                     script.src=version?`${file}?v=${encodeURIComponent(version)}`:file;
                     script.onload=resolve;script.onerror=()=>reject(new Error(`Ressource hors ligne absente : ${file}`));
                     document.head.append(script);
@@ -48,7 +50,7 @@
         const status=document.querySelector('#local-sync-status');
         const errorPanel=document.querySelector('#offline-error');
         async function render() {
-            const records=(await FoxLocal.all()).filter(report=>report.user===user);
+            const records=(await FoxLocal.all()).filter(report=>report.user===user && !report.localDeleted);
             container.replaceChildren();
             const pending=await FoxSync.pendingState(user);
             status.textContent=`${navigator.onLine?'Connecté':'Hors ligne — enregistré sur cet appareil'} · ${pending.changes} modification(s) en attente · ${pending.drafts} rapport(s) · ${pending.photos} photo(s)`;
@@ -59,19 +61,52 @@
                 const state=document.createElement('p');
                 state.textContent=report.conflictResolved?'Conflit résolu · original archivé, données et photos conservées.':report.conflict?`Conflit actif · ${report.error || 'conflit de versions'}. Données locales conservées.`:report.dirty||report.operation?'À synchroniser':'Enregistré sur le serveur et cet appareil';
                 const link=document.createElement('a');link.className='button button-primary';
-                link.href=`offline.html?id=${encodeURIComponent(report.id)}`;link.textContent=report.conflictResolved?'Consulter l’archive':report.conflict?'Résoudre':'Reprendre ce rapport';
+                link.href=`offline.html?id=${encodeURIComponent(report.id)}`;link.textContent=report.conflictResolved?'Consulter l’archive':report.conflict?'Consulter le brouillon':'Reprendre ce rapport';
                 const remove=document.createElement('button');remove.className='button button-secondary';
                 remove.textContent='Retirer la copie de cet appareil';
                 remove.onclick=async()=>{
                     try {
                         const current=await FoxLocal.get(report.key);
-                        if(current.conflictResolved) throw new Error('Cette archive conserve les saisies et photos originales et ne peut pas être retirée ici.');
-                        if(current.dirty || current.operation) throw new Error('Synchronisez les modifications et photos avant de retirer cette copie.');
-                        if(!confirm('Retirer uniquement la copie locale déjà sauvegardée sur le serveur ?')) return;
-                        await FoxLocal.remove(report.key);
+                        const unsaved=current?.dirty || current?.operation || current?.conflict;
+                        if(!confirm(unsaved
+                            ? 'Supprimer ce brouillon de cet appareil, y compris ses saisies et photos locales non synchronisées ? Cette suppression est définitive. Le rapport serveur ne sera pas supprimé.'
+                            : 'Retirer cette copie et ses photos de cet appareil ? Le rapport serveur ne sera pas supprimé.')) return;
+                        remove.disabled=true;
+                        await FoxSync.discardLocal(report.key);
+                        errorPanel.textContent='';
+                        await render();
                     } catch(error) { errorPanel.textContent=error.message; }
+                    finally { remove.disabled=false; }
                 };
                 panel.append(title,state,link);
+                if (report.conflict && !report.conflictResolved) {
+                    // Resolve the stored snapshot directly: opening an obsolete editor
+                    // or saving its form is not a prerequisite for rescuing a conflict.
+                    const copy=document.createElement('button');copy.type='button';copy.className='button button-primary';
+                    copy.textContent='Conserver mes saisies dans une copie';
+                    copy.onclick=async()=>{
+                        copy.disabled=true;
+                        try {
+                            const saved=await FoxSync.copyConflict(report.key);
+                            errorPanel.textContent='';
+                            location.href=`offline.html?id=${encodeURIComponent(saved.id)}`;
+                        } catch(error) { errorPanel.textContent=error.message; }
+                        finally { copy.disabled=false; }
+                    };
+                    const server=document.createElement('button');server.type='button';server.className='button button-secondary';
+                    server.textContent='Utiliser la version serveur';
+                    server.onclick=async()=>{
+                        server.disabled=true;
+                        try {
+                            const url=await FoxSync.serverConflictPage(report.key);
+                            if(!confirm('Utiliser la version serveur ? Vos saisies et photos locales seront conservées dans une archive.')) return;
+                            await FoxSync.resolveServer(report.key);
+                            errorPanel.textContent='';location.href=url;
+                        } catch(error) { errorPanel.textContent=error.message; }
+                        finally { server.disabled=false; }
+                    };
+                    panel.append(copy,server);
+                }
                 if (report.conflictResolved && report.resolvedCopyKey) {
                     const copy=records.find(item=>item.key===report.resolvedCopyKey);
                     if(copy) {

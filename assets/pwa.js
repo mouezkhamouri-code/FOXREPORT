@@ -116,6 +116,7 @@
             };
             try {
                 local=await FoxLocal.update(key,current=>{
+                    if (current?.localDeleted) return current;
                     if (current?.conflictResolved) {
                         if (!contentChanged) return current;
                         throw new Error('Ce conflit est archivé. Ouvrez sa copie depuis les brouillons locaux.');
@@ -141,6 +142,11 @@
                 await FoxLocal.put(local);
                 conflict.hidden=false;
                 throw new Error(`${error.message} Vos saisies sont conservées dans une copie locale en conflit.`);
+            }
+            if (local.localDeleted) {
+                resolutionFinished=true;conflict.hidden=true;form.inert=true;
+                notify('Ce brouillon a été retiré de cet appareil.');
+                return;
             }
             if (local.conflictResolved) {
                 resolutionFinished=true;conflict.hidden=true;
@@ -204,6 +210,14 @@
     function showError(error) { notify(`Erreur · ${error.message}`); }
     try {
         local=await FoxLocal.get(key);
+        if (local?.localDeleted) {
+            if (document.body.dataset.localSnapshot==='true') {
+                resolutionFinished=true;location.href='offline.html';return;
+            }
+            // Removing an on-device copy must not prevent reopening its server report.
+            local=(await FoxLocal.all()).find(record=>record.user===user && !record.conflictResolved && String(record.serverId)===id);
+            key=local?.key || `${user}:server-${id}-${crypto.randomUUID()}`;
+        }
         if (!local && !String(id).startsWith('local-')) {
             local=(await FoxLocal.all()).find(record=>record.user===user && !record.conflictResolved && String(record.serverId)===id);
             if(local) key=local.key;
@@ -233,7 +247,9 @@
             document.querySelector('#active-section').value=String(local.section || 1);
             form.dispatchEvent(new Event('fox-sections-restored'));
             form.elements.revision.value=String(local.revision);
-            if (local.conflict || (!String(id).startsWith('local-') && serverRevision!==local.revision && !local.operation)) {
+            // A local snapshot does not contain a freshly fetched server revision.
+            // Legacy IndexedDB records may store numeric revisions as strings.
+            if (local.conflict || (document.body.dataset.localSnapshot!=='true' && !String(id).startsWith('local-') && serverRevision!==Number(local.revision) && !local.operation)) {
                 local={...local,conflict:true,error:local.error || `Version locale ${local.revision}, serveur ${serverRevision}. Les données locales sont conservées.`};
                 await FoxLocal.put(local);conflict.hidden=false;
                 notify('Erreur · conflit de versions, données locales conservées');

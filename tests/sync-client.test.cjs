@@ -207,3 +207,40 @@ test('Choosing the server archives rather than deletes local data and stops the 
     assert.equal((await page.api.pendingState('test')).drafts,0);
     await page.api.syncAll('test');assert.equal(page.calls.length,0);
 });
+
+test('Explicit local removal discards a conflicted snapshot without a server request',async()=>{
+    const page=fixture(),record=draft();record.conflict=true;record.serverId=5;
+    page.records.set(record.key,record);
+    await page.api.discardLocal(record.key);
+    const removed=page.records.get(record.key);
+    assert.equal(removed.localDeleted,true);
+    assert.equal(removed.conflictResolved,true);
+    assert.equal(removed.operation,undefined);
+    assert.equal(removed.html,undefined);
+    assert.equal(removed.entries.length,0);
+    assert.equal(removed.photos.length,0);
+    assert.equal(removed.savedPhotos.length,0);
+    assert.equal(removed.serverId,5);
+    assert.equal((await page.api.pendingState('test')).drafts,0);
+    await page.api.syncAll('test');
+    assert.equal(page.calls.length,0);
+});
+
+test('Server-choice verifies the real report before archiving, and refuses a login response',async()=>{
+    const page=fixture(),record=draft();record.serverId=5;record.conflict=true;page.records.set(record.key,record);
+    page.context.DOMParser=class {parseFromString(){return {querySelector:()=>null};}};
+    page.setBehavior(async()=>({ok:true,text:async()=>'<login>'}));
+    await assert.rejects(page.api.serverConflictPage(record.key),/non confirmé/);
+    assert.equal(page.records.get(record.key).conflictResolved,undefined);
+    page.context.DOMParser=class {parseFromString(){return {querySelector:()=>({value:'5'})};}};
+    assert.equal(await page.api.serverConflictPage(record.key),'index.php?id=5');
+    await page.api.resolveServer(record.key);
+    assert.equal(page.records.get(record.key).conflictResolved,true);
+    assert.equal(await page.records.get(record.key).photos[0].blob.text(),'test');
+});
+test('Legacy string revision receives a numeric acknowledgement instead of expecting string concatenation',async()=>{
+    const page=fixture(),record=draft();record.serverId=5;record.revision='1';page.records.set(record.key,record);
+    const saved=await page.api.syncRecord(record.key);
+    assert.equal(saved.revision,2);
+    assert.equal(saved.dirty,false);
+});

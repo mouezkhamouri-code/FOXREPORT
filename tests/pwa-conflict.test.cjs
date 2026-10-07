@@ -87,3 +87,22 @@ test('Failed copy leaves the conflict visible and reports the actual failure',as
     assert.match(page.state.textContent,/Photo verification failed/);
     assert.equal(page.context.location.href,'');
 });
+
+test('A local snapshot with a legacy string revision is not treated as a fresh server conflict',async()=>{
+    const page=await fixture({record:{key:'test:7',id:'7',serverId:7,user:'test',revision:'0',version:1,
+        entries:[['report_id','7'],['revision','0'],['establishment','Synthetic'],['active_section','1']],
+        photos:[],savedPhotos:[],dirty:false,title:'Synthetic',section:1}});
+    assert.equal(page.conflict.hidden,true);
+    assert.equal(page.records.get('test:7').conflict,undefined);
+});
+test('An old editor cannot recreate a locally removed draft during photo/input callbacks',async()=>{
+    const page=await fixture();
+    page.records.set('test:7',{key:'test:7',id:'7',user:'test',version:2,localDeleted:true,conflictResolved:true,dirty:false,photos:[],entries:[]});
+    page.events['fox-photos-cached']();
+    await new Promise(resolve=>setImmediate(resolve));
+    page.handlers.input();
+    await page.context.window.FoxBeforeUpdate();
+    assert.equal(page.records.size,1);
+    assert.equal(page.records.get('test:7').localDeleted,true);
+    assert.equal(page.records.get('test:7').entries.length,0);
+});

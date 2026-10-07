@@ -39,7 +39,7 @@
             if (current.operation) return current;
             return {...current, operation:{
                 requestId:crypto.randomUUID(), entries:current.entries.map(entry=>[...entry]),
-                photos:(current.photos || []).map(photo=>({...photo})), revision:current.revision,
+                photos:(current.photos || []).map(photo=>({...photo})), revision:Number(current.revision),
                 status, version:current.version || 0,
                 pendingChanges:current.pendingChanges || 0,
             }};
@@ -157,6 +157,35 @@
             return {...current,conflictResolved:true,resolution:'server',resolvedAt:Date.now(),version:(current.version || 0)+1};
         });
     }
+    async function discardLocal(key) {
+        // Wait for an already dispatched save before releasing its local snapshot.
+        if (inFlight.has(key)) await inFlight.get(key).catch(()=>{});
+        const discard=()=>FoxLocal.update(key,current=>{
+            if (!current) return current;
+            // A small tombstone prevents an editor still open in another tab from
+            // recreating the deleted draft. No fields, photos or pending operation remain.
+            return {key:current.key,user:current.user,id:current.id,serverId:current.serverId,
+                localDeleted:true,conflictResolved:true,dirty:false,photos:[],savedPhotos:[],entries:[],
+                version:(Number(current.version) || 0)+1,modified:Date.now()};
+        });
+        return navigator.locks
+            ? navigator.locks.request(`foxreport-sync:${key}`,discard)
+            : discard();
+    }
+    async function serverConflictPage(key) {
+        const record=await FoxLocal.get(key);
+        const serverId=Number(record?.serverId || record?.id);
+        if (!navigator.onLine) throw new Error('Connexion requise pour consulter la version serveur.');
+        if (!Number.isInteger(serverId) || serverId<1) throw new Error('Ce brouillon n’a pas de version serveur. Créez une copie ou retirez-le de cet appareil.');
+        const url=`index.php?id=${serverId}`;
+        const response=await fetch(url,{cache:'no-store'});
+        if (!response.ok) throw new Error('Version serveur indisponible. Le brouillon local est conservé.');
+        const page=new DOMParser().parseFromString(await response.text(),'text/html');
+        if (page.querySelector('[name="report_id"]')?.value!==String(serverId)) {
+            throw new Error('Rapport serveur non confirmé. Reconnectez-vous ou créez une copie du brouillon.');
+        }
+        return url;
+    }
     async function copyConflict(key) {
         const source=await FoxLocal.get(key);
         if (!source?.conflict || source.conflictResolved) throw new Error('Ce conflit n’est plus actif. Rechargez les brouillons locaux.');
@@ -219,5 +248,5 @@
             row.append(text,link);container.append(row);
         }
     }
-    window.FoxSync = {syncRecord,syncAll,cacheTemplate,createDraft,pendingState,copyConflict,resolveServer,renderConflicts};
+    window.FoxSync = {syncRecord,syncAll,cacheTemplate,createDraft,pendingState,copyConflict,resolveServer,renderConflicts,discardLocal,serverConflictPage};
 })();
