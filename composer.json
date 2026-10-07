@@ -1,0 +1,18 @@
+{
+    "name": "foxreport/foxreport",
+    "description": "Rapports d'intervention FoxReport",
+    "type": "project",
+    "require": {
+        "php": ">=8.1",
+        "ext-dom": "*",
+        "ext-fileinfo": "*",
+        "ext-gd": "*",
+        "ext-mbstring": "*",
+        "ext-exif": "*",
+        "ext-curl": "*",
+        "dompdf/dompdf": "^3.1"
+    },
+    "scripts": {
+        "test": "@php tests/run.php"
+    }
+}

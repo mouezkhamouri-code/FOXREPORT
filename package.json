@@ -1,0 +1,15 @@
+{
+  "name": "foxreport",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build.cjs",
+    "test": "node --test tests/mobile.test.cjs tests/oauth-http.test.cjs tests/report-list.test.cjs tests/install.test.cjs tests/accordion.test.cjs tests/report-state-http.test.cjs tests/sync-client.test.cjs tests/update.test.cjs"
+  },
+  "dependencies": {
+    "@zxing/browser": "^0.1.5",
+    "tesseract.js": "^6.0.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

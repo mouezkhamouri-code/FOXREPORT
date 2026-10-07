@@ -1,0 +1,6 @@
+AddType application/manifest+json .webmanifest
+<FilesMatch "^(sw\.js|version\.json|manifest\.webmanifest)$">
+    <IfModule mod_headers.c>
+        Header set Cache-Control "no-cache, max-age=0, must-revalidate"
+    </IfModule>
+</FilesMatch>

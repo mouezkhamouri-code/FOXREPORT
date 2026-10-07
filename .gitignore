@@ -1,2 +1,17 @@
 .vscode/sftp.json
 SERVEUR/db.php
+/storage/photos/*
+!/storage/photos/.htaccess
+/DOCUMENTATION/*COMPTE_RENDU*
+/vendor/
+/storage/pdf-cache/*
+!/storage/pdf-cache/.htaccess
+/storage/private/*
+!/storage/private/.htaccess
+/DOCUMENTATION/*.jpg
+/DOCUMENTATION/*.jpeg
+/DOCUMENTATION/*.png
+/DOCUMENTATION/*.webp
+/JPG/
+/node_modules/
+/config/oauth.php
