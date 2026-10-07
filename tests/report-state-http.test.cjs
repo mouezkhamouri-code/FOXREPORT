@@ -21,11 +21,12 @@ test('Real report save and sync persist section validation, preserve legacy stat
         fs.mkdirSync(path.join(directory,'app'));
         fs.mkdirSync(path.join(directory,'SERVEUR'));
         fs.copyFileSync(path.join(root,'index.php'),path.join(directory,'index.php'));
+        fs.copyFileSync(path.join(root,'salespeople.php'),path.join(directory,'salespeople.php'));
         if(process.env.FOXREPORT_KEEP_FIXTURE==='1') {
             fs.cpSync(path.join(root,'assets'),path.join(directory,'assets'),{recursive:true});
             for(const name of ['offline.html','sw.js','manifest.webmanifest','version.json','photo.php'])fs.copyFileSync(path.join(root,name),path.join(directory,name));
         }
-        for(const name of ['report-definition.php','images.php','completion.php','sync.php','maps.php','report-list.php','report-delete.php','section-state.php','version.php','build-version.php']) {
+        for(const name of ['report-definition.php','images.php','completion.php','sync.php','maps.php','report-list.php','report-delete.php','section-state.php','salespeople.php','version.php','build-version.php']) {
             fs.copyFileSync(path.join(root,'app',name),path.join(directory,'app',name));
         }
         fs.writeFileSync(path.join(directory,'app','auth.php'),`<?php
@@ -82,6 +83,17 @@ test('Real report save and sync persist section validation, preserve legacy stat
             }
         }
         assert.ok(ready,logs);
+        const directoryUrl=base.replace('/index.php','/salespeople.php');
+        const deniedCreate=await fetch(directoryUrl,{method:'POST',body:new URLSearchParams({csrf_token:'wrong',last_name:'Example',first_name:'Alice',email:'alice@example.com'})});
+        assert.equal(deniedCreate.status,403);
+        const invalidPerson=await fetch(directoryUrl,{method:'POST',body:new URLSearchParams({csrf_token:'synthetic-csrf',last_name:'Example',first_name:'Alice',email:'invalid'})});
+        assert.equal(invalidPerson.status,422);
+        const personCreated=await fetch(directoryUrl,{method:'POST',redirect:'manual',body:new URLSearchParams({csrf_token:'synthetic-csrf',last_name:'Example',first_name:'Alice',phone:'0600000000',email:'alice@example.com'})});
+        assert.equal(personCreated.status,303,await personCreated.text());
+        const directoryPage=await fetch(directoryUrl).then(response=>response.text());
+        assert.match(directoryPage,/Example Alice/);
+        assert.match(directoryPage,/alice@example.com/);
+        assert.match(directoryPage,/0600000000/);
         const create=await fetch(base+'?api=create',{method:'POST',body:new URLSearchParams({action:'create',csrf_token:'synthetic-csrf'})});
         assert.equal(create.status,201,await create.clone().text());
         const report=await create.json();
@@ -91,7 +103,12 @@ test('Real report save and sync persist section validation, preserve legacy stat
         assert.equal(localFirst.id,localRetry.id,'Local UUID prevents duplicate creation');
         const template=await fetch(base+'?api=template');
         assert.equal(template.status,200,await template.clone().text());
-        assert.match((await template.json()).html,/data-section-accordion="11"/);
+        const templateHtml=(await template.json()).html;
+        assert.match(templateHtml,/data-section-accordion="11"/);
+        assert.match(templateHtml,/name="sales_rep_id"/);
+        assert.match(templateHtml,/<option value="1">Example Alice<\/option>/);
+        assert.doesNotMatch(templateHtml,/alice@example.com|0600000000/);
+        assert.match(templateHtml,/INFORMATIONS COMMERCIALES/);
         const getPage=()=>fetch(base+`?id=${report.id}`).then(response=>response.text());
         const initial=await getPage();
         const heading=initial.match(/<section class="editor-heading">([\s\S]*?)<\/section>/)[1];
@@ -117,12 +134,16 @@ test('Real report save and sync persist section validation, preserve legacy stat
             return fetch(base+`?api=save&id=${report.id}`,{method:'POST',body:new URLSearchParams(data)});
         };
         const requestId=randomUUID();
-        const first=await save(1,'[6]',{request_id:requestId,context_notes:'Synthetic saved content'});
+        const first=await save(1,'[6]',{request_id:requestId,context_notes:'Synthetic saved content',sales_rep_id:'1',sales_rep:'Spoofed name'});
         assert.equal(first.status,200,await first.clone().text());
         assert.equal((await first.json()).revision,2);
         const saved=await getPage();
         assert.match(saved,/report-accordion is-complete" data-section-accordion="6"/);
         assert.match(saved,/Synthetic saved content/);
+        assert.match(saved,/name="sales_rep" value="Example Alice"/);
+        assert.match(saved,/<option value="1" selected>Example Alice<\/option>/);
+        const missingPerson=await save(2,'[6]',{sales_rep_id:'999999'});
+        assert.equal(missingPerson.status,422);
         assert.match(saved,/name="completed_sections" value="\[6\]"/);
         const retry=await save(1,'[6]',{request_id:requestId});
         assert.equal(retry.status,200);

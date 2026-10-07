@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 $sections = [
-    1 => 'Informations',
+    1 => 'INFORMATIONS COMMERCIALES',
     12 => 'SITE',
     2 => 'Évaluation',
     3 => 'Matériel',

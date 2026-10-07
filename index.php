@@ -39,6 +39,7 @@ require_once __DIR__ . '/app/maps.php';
 require_once __DIR__ . '/app/report-list.php';
 require_once __DIR__ . '/app/report-delete.php';
 require_once __DIR__ . '/app/section-state.php';
+require_once __DIR__ . '/app/salespeople.php';
 
 if ($apiRequest && $_SERVER['REQUEST_METHOD'] === 'GET' && $_GET['api'] === 'session') {
     syncJson(['user' => $currentUser['sub'], 'email' => $currentUser['email'], 'csrf' => csrfToken()]);
@@ -159,6 +160,16 @@ function loadPostedReport(array &$errors): array
     }
     foreach ($fields as $field => $maxBytes) {
         $data[$field] = scalarPost($field, $maxBytes, $errors);
+    }
+    if (array_key_exists('sales_rep_id', $_POST)) {
+        try {
+            $person = selectedSalesperson($GLOBALS['pdo'], $_POST['sales_rep_id']);
+            $data['sales_rep_id'] = $person ? (int) $person['id'] : null;
+            if ($person) $data['sales_rep'] = salespersonName($person);
+        } catch (PDOException $exception) {
+            error_log('FoxReport salesperson selection failed; SQLSTATE ' . $exception->getCode());
+            $errors[] = 'Annuaire des commerciaux indisponible. Vérifiez la migration 005.';
+        } catch (RuntimeException $exception) { $errors[] = $exception->getMessage(); }
     }
 
     if ($data['contact_email'] !== '' && !filter_var($data['contact_email'], FILTER_VALIDATE_EMAIL)) {
@@ -796,6 +807,19 @@ if ($report !== null && !array_key_exists('completed_sections', $report)) {
     $isEditable = false;
 }
 $completedSectionState = [];
+$salespeople = [];
+if ($isEditor) {
+    try {
+        $salespeople = salespeople($pdo);
+        $columns = $pdo->query('SHOW COLUMNS FROM foxreport_reports')->fetchAll(PDO::FETCH_COLUMN);
+        if (!in_array('sales_rep_id', $columns, true)) throw new RuntimeException('Appliquez la migration database/migrations/005-salespeople.sql après sauvegarde.');
+    } catch (PDOException $exception) {
+        error_log('FoxReport salespeople schema unavailable; SQLSTATE ' . $exception->getCode());
+        $errors[] = 'Appliquez la migration database/migrations/005-salespeople.sql après sauvegarde pour sélectionner un commercial.';
+        $isEditable = false;
+    } catch (RuntimeException $exception) { $errors[] = $exception->getMessage();$isEditable = false; }
+    if ($templateRequest && !$isEditable) syncJson(['error'=>implode(' ', $errors)], 503);
+}
 try {
     $completedSectionState = completedSections($formData['completed_sections'] ?? null);
 } catch (RuntimeException $exception) {
@@ -843,6 +867,7 @@ try {
                 <div data-install-container></div>
                 <div data-update-container></div>
                 <a href="offline.html" class="button button-secondary">Brouillons locaux</a>
+                <a href="salespeople.php" class="button button-secondary">Commerciaux</a>
                 <a href="rapport.php" class="button button-secondary" target="_blank" rel="noopener">Rapport · modèle vide</a>
                 <form method="post" action="auth.php?action=logout"><input type="hidden" name="csrf_token" value="<?= h(csrfToken()) ?>"><button class="button button-secondary">Déconnexion</button></form>
             </div>
@@ -932,7 +957,7 @@ try {
             </div>
             <fieldset <?= $isEditable ? '' : 'disabled' ?>>
                 <?php sectionStart(1, $formData, $activeSection); ?>
-                    <div class="section-title"><span class="section-index">01</span><div><p class="eyebrow">LE LIEU &amp; LES RÉFÉRENCES</p><h2>Informations</h2><p>Les repères essentiels pour identifier l’intervention.</p></div></div>
+                    <div class="section-title"><span class="section-index">01</span><div><p class="eyebrow">LE LIEU &amp; LES RÉFÉRENCES</p><h2>INFORMATIONS COMMERCIALES</h2><p>Les repères essentiels pour identifier l’intervention.</p></div></div>
                     <div class="form-grid">
                         <?php inputField($formData, 'establishment', 'Établissement'); ?>
                         <?php inputField($formData, 'report_date', 'Date de l’intervention', 'date'); ?>
@@ -940,7 +965,12 @@ try {
                         <?php inputField($formData, 'contact_name', 'Contact sur place'); ?>
                         <?php inputField($formData, 'contact_phone', 'Téléphone', 'tel', 'tel'); ?>
                         <?php inputField($formData, 'contact_email', 'E-mail', 'email', 'email'); ?>
-                        <?php inputField($formData, 'sales_rep', 'Commercial'); ?>
+                        <input type="hidden" name="sales_rep" value="<?= h(value($formData, 'sales_rep')) ?>">
+                        <?php
+                        $salesOptions = [''=>value($formData, 'sales_rep') !== '' ? value($formData, 'sales_rep') . ' (ancien contact)' : 'Choisir un commercial'];
+                        foreach ($salespeople as $person) $salesOptions[(string) $person['id']] = salespersonName($person);
+                        selectField($formData, 'sales_rep_id', 'Commercial', $salesOptions);
+                        ?>
                         <?php inputField($formData, 'customer_id', 'Customer ID'); ?>
                         <?php inputField($formData, 'order_reference', 'Référence de commande'); ?>
                         <?php inputField($formData, 'order_date', 'Date de commande', 'date'); ?>

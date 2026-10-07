@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS foxreport_reports (
     contact_phone VARCHAR(60) NOT NULL DEFAULT '',
     contact_email VARCHAR(190) NOT NULL DEFAULT '',
     sales_rep VARCHAR(190) NOT NULL DEFAULT '',
+    sales_rep_id BIGINT UNSIGNED NULL,
     customer_id VARCHAR(100) NOT NULL DEFAULT '',
     order_reference VARCHAR(100) NOT NULL DEFAULT '',
     order_date DATE NULL,
@@ -100,4 +101,13 @@ CREATE TABLE IF NOT EXISTS foxreport_sync_operations (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (request_id),
     CONSTRAINT fk_foxreport_sync_report FOREIGN KEY (report_id) REFERENCES foxreport_reports(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS foxreport_salespeople (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    last_name VARCHAR(90) NOT NULL,
+    first_name VARCHAR(90) NOT NULL,
+    phone VARCHAR(60) NOT NULL DEFAULT '',
+    email VARCHAR(190) NOT NULL,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

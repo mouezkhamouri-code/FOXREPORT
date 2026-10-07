@@ -4,6 +4,14 @@ FoxReport est une application indépendante de PLANESTO pour saisir, sauvegarder
 
 ## Première installation
 
+### Annuaire des commerciaux
+
+Le menu **Commerciaux** ouvre un annuaire authentifié, en ligne : création de fiches nom, prénom, téléphone facultatif et e-mail obligatoire, avec contrôle CSRF et validation serveur. Le rapport n'affiche que le nom dans son sélecteur. L'identifiant `sales_rep_id` lie le rapport à la fiche pour une utilisation ultérieure de l'e-mail ; aucun message n'est envoyé. `sales_rep` conserve le nom pour les PDF et anciens clients. Les anciens noms libres sont conservés comme « ancien contact », sans rapprochement automatique ambigu.
+
+La première section est renommée **INFORMATIONS COMMERCIALES**, dans le formulaire et le PDF, sans changer son identifiant ni ses validations existantes.
+
+Pour une base existante, après sauvegarde et vérification que `sales_rep_id` n'existe pas déjà, exécutez **une seule fois** `database/migrations/005-salespeople.sql`. Pour une nouvelle base, le schéma inclut l'annuaire. Sans cette migration, l'éditeur signale explicitement le schéma incomplet et ne prétend pas sauvegarder une sélection. En PWA, les choix de noms sont inclus dans le modèle privé IndexedDB préparé en ligne ; téléphone et e-mail ne sont pas inclus dans ce modèle. La création exige le réseau. Après ajout d'un commercial, revenez à l'accueil en ligne pour actualiser le modèle avant utilisation hors connexion.
+
 1. Dans IONOS, créez une base MySQL et un utilisateur dédiés à FoxReport. Ne choisissez pas une base PLANESTO.
 2. Configurez `SERVEUR/db.php` pour cette base dédiée. L’application réutilise l’instance PDO `$pdo` fournie par ce fichier. Le fichier contient des identifiants et reste ignoré par Git.
 3. Dans phpMyAdmin, sélectionnez explicitement la base FoxReport, puis importez `database/schema.sql`. Le script ne contient que des tables préfixées `foxreport_`; il ne sélectionne ni ne modifie une base PLANESTO.

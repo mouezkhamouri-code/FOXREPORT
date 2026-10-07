@@ -30,7 +30,7 @@ async function build() {
         if (!response.ok) throw new Error(`OCR language download failed: ${response.status}`);
         fs.writeFileSync(language, Buffer.from(await response.arrayBuffer()));
     }
-    const files = ['offline.html','manifest.webmanifest','index.php','auth.php','scripts/build.cjs'];
+    const files = ['offline.html','manifest.webmanifest','index.php','auth.php','salespeople.php','scripts/build.cjs'];
     function addAssets(directory) {
         for (const entry of fs.readdirSync(directory,{withFileTypes:true})) {
             const filename = path.join(directory,entry.name);
