@@ -4,7 +4,10 @@
     function display(state,message) {
         document.body.dataset.connectionState=state;
         const header=document.querySelector('.topbar');
-        if (header) header.setAttribute('aria-label',message);
+        if (header) {
+            header.setAttribute('aria-label',message);
+            header.setAttribute('data-connection-label',state==='synced'?'Synchronisé':state==='error'?'Erreur de synchro':navigator.onLine?'Synchro en attente':'Hors ligne');
+        }
     }
     async function refresh() {
         const current=++generation;

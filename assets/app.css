@@ -29,6 +29,9 @@ body[data-connection-state] .topbar { position: relative; }
 body[data-connection-state] .topbar::after { content: ""; position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background: #F97316; }
 body[data-connection-state="synced"] .topbar::after { background: var(--green); }
 body[data-connection-state="error"] .topbar::after { background: var(--red); }
+body[data-connection-state] .topbar::before { content: attr(data-connection-label); position: absolute; z-index: 1; bottom: -6px; left: 50%; transform: translateX(-50%); padding: 0 7px; border-radius: 3px; background: #F97316; color: var(--ink); font-size: 9px; line-height: 12px; font-weight: 600; white-space: nowrap; pointer-events: none; }
+body[data-connection-state="synced"] .topbar::before { background: var(--green); color: var(--white); }
+body[data-connection-state="error"] .topbar::before { background: var(--red); color: var(--white); }
 .brand { display: inline-flex; align-items: center; gap: 11px; color: var(--ink); font-size: 20px; font-weight: 760; letter-spacing: -.7px; text-decoration: none; }
 .brand > span:last-child > span { color: var(--accent-dark); }
 .brand-logo { width: 44px; height: 44px; flex: 0 0 44px; object-fit: contain; }
