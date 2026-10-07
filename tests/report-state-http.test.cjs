@@ -94,6 +94,8 @@ test('Real report save and sync persist section validation, preserve legacy stat
         assert.match(directoryPage,/Example Alice/);
         assert.match(directoryPage,/alice@example.com/);
         assert.match(directoryPage,/0600000000/);
+        assert.match(directoryPage,/href="tel:0600000000"[^>]*aria-label="Appeler Example Alice">06 00 00 00 00<\/a>/);
+        assert.match(directoryPage,/assets\/salespeople.js/);
         const create=await fetch(base+'?api=create',{method:'POST',body:new URLSearchParams({action:'create',csrf_token:'synthetic-csrf'})});
         assert.equal(create.status,201,await create.clone().text());
         const report=await create.json();
@@ -109,6 +111,19 @@ test('Real report save and sync persist section validation, preserve legacy stat
         assert.match(templateHtml,/<option value="1">Example Alice<\/option>/);
         assert.doesNotMatch(templateHtml,/alice@example.com|0600000000/);
         assert.match(templateHtml,/INFORMATIONS COMMERCIALES/);
+        const commercial=templateHtml.match(/data-section-panel="1"[\s\S]*?data-section-panel="12"/)[0];
+        const commercialOrder=['establishment','address','contact_name','contact_phone','sales_rep_id','order_reference','gallery_url','intervention_id','report-day-number','author','report_date','contact_email','customer_id','order_date'];
+        let lastPosition=-1;
+        for(const field of commercialOrder) {
+            const position=commercial.indexOf(field==='report-day-number'?`id="${field}"`:`name="${field}"`);
+            assert.ok(position>lastPosition,`${field} follows the requested commercial order`);
+            lastPosition=position;
+        }
+        const siteTemplate=templateHtml.match(/data-section-panel="12"[\s\S]*?data-section-panel="2"/)[0];
+        assert.match(siteTemplate,/Photo du restaurant extérieur \/ intérieur \/ terrasse/);
+        assert.match(siteTemplate,/Image à prendre en mode large/);
+        assert.doesNotMatch(siteTemplate,/Photos de cette section|8 Mo maximum/);
+        assert.match(siteTemplate,/multiple data-photo-input="1"/);
         const getPage=()=>fetch(base+`?id=${report.id}`).then(response=>response.text());
         const initial=await getPage();
         const heading=initial.match(/<section class="editor-heading">([\s\S]*?)<\/section>/)[1];

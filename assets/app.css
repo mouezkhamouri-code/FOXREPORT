@@ -167,6 +167,10 @@ body.pwa-standalone #local-sync-status[role="status"] { display: none; }
 .section-index { width: 43px; height: 43px; flex: 0 0 43px; display: grid; place-items: center; border-radius: 13px; background: var(--accent-soft); color: var(--accent-dark); font-size: 13px; font-weight: 800; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 22px; }
 .form-grid-narrow { max-width: 690px; }
+.commercial-row + .commercial-row { margin-top: 20px; }
+@media (min-width: 1000px) {
+    .commercial-row-four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
 .field { min-width: 0; display: flex; flex-direction: column; gap: 7px; margin-bottom: 20px; color: #35435a; font-size: 12px; font-weight: 700; }
 .form-grid .field { margin: 0; }
 .field input, .field select, .field textarea, .device-table input, .device-table select { width: 100%; min-width: 0; border: 1px solid var(--line); border-radius: 8px; outline: 0; background: var(--white); color: var(--ink); font-size: 13px; font-weight: 450; transition: border .15s ease, box-shadow .15s ease; }

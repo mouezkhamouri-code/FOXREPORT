@@ -43,7 +43,7 @@ try {
 }
 ?>
 <!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Commerciaux · FoxReport</title><link rel="stylesheet" href="<?= salesEscape(foxAsset('assets/app.css')) ?>"></head>
+<title>Commerciaux · FoxReport</title><link rel="stylesheet" href="<?= salesEscape(foxAsset('assets/app.css')) ?>"><script defer src="<?= salesEscape(foxAsset('assets/salespeople.js')) ?>"></script></head>
 <body><header class="topbar"><a class="brand" href="index.php">FoxReport</a><a class="button button-secondary" href="index.php">Rapports</a></header>
 <main class="page-shell"><h1>Commerciaux</h1>
 <?php if ($error !== ''): ?><p class="alert alert-error" role="alert"><?= salesEscape($error) ?></p><?php endif; ?>
@@ -56,5 +56,8 @@ try {
 <label class="field field-floating"><input placeholder=" " name="<?= $name ?>" type="<?= $name === 'email' ? 'email' : ($name === 'phone' ? 'tel' : 'text') ?>" maxlength="<?= in_array($name, ['last_name','first_name'], true) ? 90 : ($name === 'phone' ? 60 : 190) ?>" value="<?= salesEscape($values[$name]) ?>" <?= $name === 'phone' ? '' : 'required' ?>><span class="field-title"><?= $label ?></span></label>
 <?php endforeach; ?></div><button class="button button-primary" type="submit">Créer le commercial</button></form></section>
 <div class="report-cards">
-<?php foreach ($people as $person): ?><section class="report-card report-card-progress"><h2><?= salesEscape(salespersonName($person)) ?></h2><p><?= salesEscape($person['phone']) ?></p><p><?= salesEscape($person['email']) ?></p></section><?php endforeach; ?>
+<?php foreach ($people as $person): $phone = salespersonPhone($person['phone']); $dial = salespersonDial($person['phone']); ?>
+<section class="report-card report-card-progress"><h2><?= salesEscape(salespersonName($person)) ?></h2>
+<?php if ($phone !== ''): ?><p><?php if ($dial !== null): ?><a class="button button-secondary" href="tel:<?= salesEscape($dial) ?>" aria-label="Appeler <?= salesEscape(salespersonName($person)) ?>"><?= salesEscape($phone) ?></a><?php else: ?><?= salesEscape($phone) ?><?php endif; ?></p><?php endif; ?>
+<p><?= salesEscape($person['email']) ?></p></section><?php endforeach; ?>
 </div></main></body></html>

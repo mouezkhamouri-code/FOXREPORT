@@ -43,6 +43,20 @@ function validatePhotoSource(string $source): array
     return $info;
 }
 
+function validateLandscapePhoto(string $source, array $info): void
+{
+    $orientation = 1;
+    if ($info[2] === IMAGETYPE_JPEG) {
+        $exif = imageOperation(static fn() => exif_read_data($source));
+        $orientation = (int) ($exif['Orientation'] ?? 1);
+    }
+    [$width, $height] = in_array($orientation, [5, 6, 7, 8], true)
+        ? [$info[1], $info[0]] : [$info[0], $info[1]];
+    if ($width <= $height) {
+        throw new RuntimeException('Photo SITE : prenez une image en mode paysage (large). Les photos portrait ou carrées ne sont pas acceptées.');
+    }
+}
+
 function normalizePhoto(string $source, string $destination): void
 {
     $info = validatePhotoSource($source);

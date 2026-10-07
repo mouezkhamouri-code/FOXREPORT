@@ -11,6 +11,23 @@ function salespersonName(array $person): string
     return trim($person['last_name'] . ' ' . $person['first_name']);
 }
 
+function salespersonPhone(string $phone): string
+{
+    $phone = trim($phone);
+    $digits = preg_replace('/[\s().-]+/', '', $phone);
+    return preg_match('/^0[0-9]{9}$/', $digits) === 1
+        ? implode(' ', str_split($digits, 2))
+        : $phone;
+}
+
+function salespersonDial(string $phone): ?string
+{
+    $phone = trim($phone);
+    $source = str_starts_with($phone, '+') ? str_replace('(0)', '', $phone) : $phone;
+    $dial = preg_replace('/[\s().-]+/', '', $source);
+    return preg_match('/^\+?[0-9]{3,15}$/', $dial) === 1 ? $dial : null;
+}
+
 function salespersonInput(array $input): array
 {
     $data = [];
@@ -27,6 +44,7 @@ function salespersonInput(array $input): array
     if ($data['email'] === '' || !filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
         throw new RuntimeException('Indiquez une adresse e-mail valide.');
     }
+    $data['phone'] = salespersonPhone($data['phone']);
     return $data;
 }
 

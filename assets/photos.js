@@ -47,6 +47,8 @@
                 await image.decode();
             }
             const sourceWidth=image.naturalWidth||image.width,sourceHeight=image.naturalHeight||image.height;
+            const landscapeOnly = Number(section) === 1;
+            if (landscapeOnly && sourceWidth <= sourceHeight) throw new Error('Photo SITE : prenez une image en mode paysage (large). Les photos portrait ou carrées ne sont pas acceptées.');
             if (sourceWidth * sourceHeight > 48000000) throw new Error('Photo supérieure à 48 mégapixels : réduisez-la avant le traitement.');
             let rotation = 0;
             let sourceCanvas;
@@ -60,6 +62,9 @@
                 context.drawImage(image, -sourceWidth / 2, -sourceHeight / 2);
             }
             const format = query('#crop-format');
+            format.disabled = landscapeOnly;
+            if (landscapeOnly) format.value = 'landscape';
+            query('#crop-rotate').hidden = landscapeOnly;
             const zoom = query('#crop-zoom'); const x = query('#crop-x'); const y = query('#crop-y');
             const canvas = query('#crop-preview');
             let rect;

@@ -6,7 +6,9 @@ FoxReport est une application indépendante de PLANESTO pour saisir, sauvegarder
 
 ### Annuaire des commerciaux
 
-Le menu **Commerciaux** ouvre un annuaire authentifié, en ligne : création de fiches nom, prénom, téléphone facultatif et e-mail obligatoire, avec contrôle CSRF et validation serveur. Le rapport n'affiche que le nom dans son sélecteur. L'identifiant `sales_rep_id` lie le rapport à la fiche pour une utilisation ultérieure de l'e-mail ; aucun message n'est envoyé. `sales_rep` conserve le nom pour les PDF et anciens clients. Les anciens noms libres sont conservés comme « ancien contact », sans rapprochement automatique ambigu.
+Le menu **Commerciaux** ouvre un annuaire authentifié, en ligne : création de fiches nom, prénom, téléphone facultatif et e-mail obligatoire, avec contrôle CSRF et validation serveur. Les téléphones français sont espacés par paires pendant la saisie et à l'affichage (06 12 45 12 45), y compris pour les anciennes fiches. Un bouton téléphone permet d'appeler depuis la PWA ; les numéros internationaux sont préservés. Le rapport n'affiche que le nom dans son sélecteur. L'identifiant `sales_rep_id` lie le rapport à la fiche pour une utilisation ultérieure de l'e-mail ; aucun message n'est envoyé. `sales_rep` conserve le nom pour les PDF et anciens clients. Les anciens noms libres sont conservés comme « ancien contact », sans rapprochement automatique ambigu.
+
+Les informations commerciales sont regroupées par lignes sur grand écran et empilées sur mobile. Le numéro du jour dans l'année (1 à 365/366) est calculé depuis la date d'intervention, également après restauration d'un brouillon. SITE propose plusieurs photos du restaurant extérieur / intérieur / terrasse : les nouvelles images doivent être paysage, contrôlées côté navigateur et serveur en tenant compte de l'orientation EXIF. Le recadrage SITE reste paysage ; les autres sections et les anciennes photos sont inchangées.
 
 La première section est renommée **INFORMATIONS COMMERCIALES**, dans le formulaire et le PDF, sans changer son identifiant ni ses validations existantes.
 

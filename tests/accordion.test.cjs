@@ -28,7 +28,9 @@ test('Stacked accordions explicitly complete empty sections, retain data and res
             addEventListener:(name,callback)=>{handlers[`toggle-${i+1}`]=callback;},
         };
     });
-    const nodes = {'#report-form':form,'#active-section':active,'#previous-step':previous,'#next-step':next,'#step-progress':progress};
+    const date = {value:'2024-12-31',addEventListener:(name,callback)=>{handlers[`date-${name}`]=callback;}};
+    const day = {};
+    const nodes = {'#report-form':form,'#active-section':active,'#previous-step':previous,'#next-step':next,'#step-progress':progress,'[name="report_date"]':date,'#report-day-number':day};
     const context = {
         document:{
             querySelector:name=>nodes[name]||null,
@@ -37,6 +39,12 @@ test('Stacked accordions explicitly complete empty sections, retain data and res
         Event:class {constructor(type) {this.type=type;}},
     };
     vm.runInNewContext(fs.readFileSync('assets/app.js','utf8'),context);
+    assert.equal(day.value,'366');
+    date.value='2025-12-31';handlers['date-input']();assert.equal(day.value,'365');
+    date.value='2024-03-01';handlers['date-change']();assert.equal(day.value,'61');
+    date.value='2025-02-29';handlers['date-change']();assert.equal(day.value,'');
+    date.value='';handlers['date-input']();assert.equal(day.value,'');
+    date.value='2026-01-01';handlers['fox-sections-restored']();assert.equal(day.value,'1');
     assert.equal(accordions[0].open,true);
     assert.equal(previous.disabled,true);
     assert.equal(accordions.length,11);

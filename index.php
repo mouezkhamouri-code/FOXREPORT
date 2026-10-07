@@ -348,6 +348,7 @@ function loadUploads(array $sections, array &$errors): array
             }
             try {
                 $imageInfo = validatePhotoSource($tmpName);
+                if ($section === 1) validateLandscapePhoto($tmpName, $imageInfo);
             } catch (RuntimeException $exception) {
                 $errors[] = $exception->getMessage();
                 continue;
@@ -372,6 +373,10 @@ function loadUploads(array $sections, array &$errors): array
             $format = is_array($formats) ? ($formats[$index] ?? 'original') : null;
             if (!is_string($format) || !in_array($format, ['original', 'square', 'landscape', 'portrait'], true)) {
                 $errors[] = 'Format photo invalide.';
+                continue;
+            }
+            if ($section === 1 && !in_array($format, ['original', 'landscape'], true)) {
+                $errors[] = 'Les photos SITE doivent être au format paysage.';
                 continue;
             }
             if ($format !== 'original') {
@@ -774,7 +779,11 @@ function statusSelect(array $data, string $name, string $label): void
 
 function photoBlock(int $section, array $photosBySection, bool $editable): void
 {
-    echo '<div class="photo-block" data-photo-section="' . $section . '"><div><h3>Photos de cette section</h3><p>JPEG, PNG ou WebP · 8 Mo maximum · Réduction automatique en JPEG à l’enregistrement (1 600 px, 1 Mo maximum).</p></div>';
+    echo '<div class="photo-block" data-photo-section="' . $section . '"' . ($section === 1 ? ' data-landscape-only="true"' : '') . '><div>';
+    echo $section === 1
+        ? '<h3>Photo du restaurant extérieur / intérieur / terrasse</h3><p>Image à prendre en mode large. Photos paysage uniquement ; vous pouvez en ajouter plusieurs.</p>'
+        : '<h3>Photos de cette section</h3><p>JPEG, PNG ou WebP · 8 Mo maximum · Réduction automatique en JPEG à l’enregistrement (1 600 px, 1 Mo maximum).</p>';
+    echo '</div>';
     if ($editable) {
         echo '<label class="upload-control">Galerie<input type="file" name="photos_' . $section . '[]" accept="image/jpeg,image/png,image/webp" multiple data-photo-input="' . $section . '"></label> <label class="upload-control">Prendre une photo<input type="file" accept="image/*" capture="environment" data-photo-input="' . $section . '"></label><div class="photo-caption-fields" data-caption-fields="' . $section . '"></div>';
     }
@@ -958,25 +967,32 @@ try {
             <fieldset <?= $isEditable ? '' : 'disabled' ?>>
                 <?php sectionStart(1, $formData, $activeSection); ?>
                     <div class="section-title"><span class="section-index">01</span><div><p class="eyebrow">LE LIEU &amp; LES RÉFÉRENCES</p><h2>INFORMATIONS COMMERCIALES</h2><p>Les repères essentiels pour identifier l’intervention.</p></div></div>
-                    <div class="form-grid">
+                    <div class="form-grid commercial-row commercial-row-four">
                         <?php inputField($formData, 'establishment', 'Établissement'); ?>
-                        <?php inputField($formData, 'report_date', 'Date de l’intervention', 'date'); ?>
                         <?php inputField($formData, 'address', 'Adresse'); ?>
                         <?php inputField($formData, 'contact_name', 'Contact sur place'); ?>
-                        <?php inputField($formData, 'contact_phone', 'Téléphone', 'tel', 'tel'); ?>
-                        <?php inputField($formData, 'contact_email', 'E-mail', 'email', 'email'); ?>
+                        <?php inputField($formData, 'contact_phone', 'Téléphone contact', 'tel', 'tel'); ?>
+                    </div>
+                    <div class="form-grid commercial-row">
                         <input type="hidden" name="sales_rep" value="<?= h(value($formData, 'sales_rep')) ?>">
                         <?php
                         $salesOptions = [''=>value($formData, 'sales_rep') !== '' ? value($formData, 'sales_rep') . ' (ancien contact)' : 'Choisir un commercial'];
                         foreach ($salespeople as $person) $salesOptions[(string) $person['id']] = salespersonName($person);
                         selectField($formData, 'sales_rep_id', 'Commercial', $salesOptions);
                         ?>
-                        <?php inputField($formData, 'customer_id', 'Customer ID'); ?>
                         <?php inputField($formData, 'order_reference', 'Référence de commande'); ?>
-                        <?php inputField($formData, 'order_date', 'Date de commande', 'date'); ?>
+                    </div>
+                    <div class="form-grid commercial-row commercial-row-four">
                         <?php inputField($formData, 'gallery_url', 'Lien galerie photo', 'url'); ?>
-                        <?php inputField($formData, 'author', 'Rédacteur'); ?>
                         <?php inputField($formData, 'intervention_id', 'Identifiant intervention'); ?>
+                        <label class="field field-floating"><input id="report-day-number" placeholder=" " readonly aria-label="Numéro du jour dans l’année (calculé)"><span class="field-title">Numéro du jour (calculé)</span></label>
+                        <?php inputField($formData, 'author', 'Rédacteur'); ?>
+                    </div>
+                    <div class="form-grid commercial-row commercial-row-four">
+                        <?php inputField($formData, 'report_date', 'Date de l’intervention', 'date'); ?>
+                        <?php inputField($formData, 'contact_email', 'E-mail contact', 'email', 'email'); ?>
+                        <?php inputField($formData, 'customer_id', 'Customer ID'); ?>
+                        <?php inputField($formData, 'order_date', 'Date de commande', 'date'); ?>
                     </div>
                 <?php sectionEnd(1, $isEditable); ?>
                 <?php sectionStart(12, $formData, $activeSection); ?>

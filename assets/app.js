@@ -4,6 +4,22 @@
     const form = document.querySelector('#report-form');
     if (!form) return;
 
+    const dateInput = document.querySelector('[name="report_date"]');
+    const dayNumber = document.querySelector('#report-day-number');
+    function updateDayNumber() {
+        if (!dateInput || !dayNumber) return;
+        dayNumber.value = '';
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateInput.value)) return;
+        const date = new Date(`${dateInput.value}T00:00:00Z`);
+        if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== dateInput.value) return;
+        const start = new Date(date);
+        start.setUTCMonth(0, 1);
+        dayNumber.value = String(Math.floor((date - start) / 86400000) + 1);
+    }
+    dateInput?.addEventListener('input', updateDayNumber);
+    dateInput?.addEventListener('change', updateDayNumber);
+    updateDayNumber();
+
     const tabs = Array.from(document.querySelectorAll('[data-section-tab]'));
     const panels = Array.from(document.querySelectorAll('[data-section-panel]'));
     const activeSectionField = document.querySelector('#active-section');
@@ -104,6 +120,7 @@
         form.dispatchEvent(new Event('fox-change'));
     });
     form.addEventListener('fox-sections-restored', () => {
+        updateDayNumber();
         showSection(activeSectionField.value);
         if (JSON.parse(completedField?.value || '[]').includes(Number(activeSectionField.value))) {
             const accordion = accordions.find(item => item.dataset.sectionAccordion === activeSectionField.value);
