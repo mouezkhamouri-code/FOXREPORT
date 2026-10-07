@@ -9,6 +9,7 @@
     const isInstalled = () => installed || standalone.matches || navigator.standalone === true;
 
     function render() {
+        document.body.classList.toggle('pwa-standalone',standalone.matches || navigator.standalone === true);
         const container = document.querySelector('[data-install-container]');
         if (!container) return;
         container.hidden = isInstalled();

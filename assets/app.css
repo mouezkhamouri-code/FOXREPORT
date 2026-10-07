@@ -46,6 +46,11 @@ h1 { margin-bottom: 7px; font-size: clamp(28px, 4vw, 36px); line-height: 1.15; l
 h2 { margin-bottom: 4px; font-size: 23px; letter-spacing: -.55px; }
 h3 { font-size: 16px; }
 .intro { margin: 0; color: var(--muted); }
+body.pwa-standalone .report-list-intro,
+body.pwa-standalone #local-sync-status[role="status"] { display: none; }
+@media (display-mode: standalone) {
+    .report-list-intro, #local-sync-status[role="status"] { display: none; }
+}
 .button { min-height: 43px; border: 1px solid transparent; border-radius: 10px; padding: 0 16px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px; font-weight: 700; text-decoration: none; transition: background .15s ease, border-color .15s ease, transform .15s ease; }
 .button:active { transform: translateY(1px); }
 .button-primary { background: var(--accent); color: var(--white); box-shadow: 0 5px 12px #176B7522; }

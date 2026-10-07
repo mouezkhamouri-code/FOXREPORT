@@ -851,7 +851,7 @@ try {
     <p id="local-sync-status" role="status">Vérification des données locales…</p>
     <?php if (!$isEditor): ?>
         <section class="page-heading">
-            <div>
+            <div class="report-list-intro">
                 <p class="eyebrow">VOTRE ACTIVITÉ</p>
                 <h1>Rapports d’intervention</h1>
                 <p class="intro">Retrouvez vos interventions et reprenez un brouillon à tout moment.</p>

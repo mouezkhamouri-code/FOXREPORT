@@ -13,7 +13,7 @@ async function fixture({snapshot=true,record}={}) {
         dispatchEvent:()=>{},addEventListener:(name,fn)=>{handlers[name]=fn;}};
     const conflict={hidden:true,querySelector:()=>({textContent:''})},state={textContent:''};
     const buttons=Object.fromEntries(['#conflict-copy','#conflict-server'].map(name=>[name,{disabled:false,addEventListener:(_,fn)=>{handlers[name]=fn;}}]));
-    const pending={after:()=>{}};
+    const pending={after:()=>{},setAttribute:()=>{}};
     const selectors={'#report-form':form,'#sync-conflict':conflict,'#sync-state':state,'#local-sync-status':pending,'#active-section':elements.active_section,...buttons};
     const original=record || {key:'test:7',id:'7',serverId:7,user:'test',revision:3,version:1,entries:controls.map(control=>[control.name,control.value]),
         photos:[],savedPhotos:[],dirty:true,conflict:true,error:'Old conflict',title:'Synthetic',section:1};

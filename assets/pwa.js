@@ -11,13 +11,21 @@
     if (!form && pendingPanel) pendingPanel.after(conflictsPanel);
     let saving=Promise.resolve();
     const notify = text => { if (state) state.textContent=text; };
+    function pendingError(message) {
+        if (!pendingPanel) return;
+        pendingPanel.setAttribute('role','alert');
+        pendingPanel.textContent=message;
+    }
     async function updatePending() {
         try {
             const pending=await FoxSync.pendingState(user);
-            if (pendingPanel) pendingPanel.textContent=`${navigator.onLine?'Connecté':'Hors ligne — enregistré sur cet appareil'} · ${pending.changes} modification(s) en attente · ${pending.drafts} rapport(s) · ${pending.photos} photo(s)`;
+            if (pendingPanel) {
+                pendingPanel.setAttribute('role','status');
+                pendingPanel.textContent=`${navigator.onLine?'Connecté':'Hors ligne — enregistré sur cet appareil'} · ${pending.changes} modification(s) en attente · ${pending.drafts} rapport(s) · ${pending.photos} photo(s)`;
+            }
             if (!form) await FoxSync.renderConflicts(conflictsPanel,user);
         } catch (error) {
-            if (pendingPanel) pendingPanel.textContent=`Erreur de stockage local : ${error.message}`;
+            pendingError(`Erreur de stockage local : ${error.message}`);
         }
     }
     document.addEventListener('fox-local-change',updatePending);
@@ -54,14 +62,14 @@
     });
     if (navigator.onLine) {
         FoxSync.cacheTemplate(user).catch(error=>{
-            if (pendingPanel) pendingPanel.textContent=`Préparation hors ligne impossible : ${error.message}`;
+            pendingError(`Préparation hors ligne impossible : ${error.message}`);
         });
     }
     if (!form) {
         const synchronize=async()=>{
             if (!navigator.onLine) return;
             const errors=await FoxSync.syncAll(user);
-            if (errors.length && pendingPanel) pendingPanel.textContent=`Erreur de synchronisation · ${errors.join(' ; ')}`;
+            if (errors.length) pendingError(`Erreur de synchronisation · ${errors.join(' ; ')}`);
             else await updatePending();
         };
         window.addEventListener('online',synchronize);

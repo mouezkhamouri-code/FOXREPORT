@@ -3,10 +3,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
-function fixture({ios=false, standalone=false, secure=true, registrationFailure=false} = {}) {
+function fixture({ios=false, standalone=false, iosStandalone=false, secure=true, registrationFailure=false} = {}) {
     const nodes = new Map();
     const events = {};
     const attributes = new Map();
+    const classes=new Set();
     const container = {
         hidden:false,
         querySelector:selector=>nodes.get(selector),
@@ -20,6 +21,7 @@ function fixture({ios=false, standalone=false, secure=true, registrationFailure=
             addEventListener:(name,callback)=>{events[name]=callback;},
         },
         navigator:{
+            standalone:iosStandalone,
             userAgent:ios?'iPhone':'Chrome',
             serviceWorker:{register:async url=>{
                 assert.equal(url,'sw.js');
@@ -27,6 +29,7 @@ function fixture({ios=false, standalone=false, secure=true, registrationFailure=
             }},
         },
         document:{
+            body:{classList:{toggle:(name,enabled)=>{if(enabled)classes.add(name);else classes.delete(name);}}},
             querySelector:selector=>selector==='[data-install-container]'?container:nodes.get(selector),
             createElement:()=>({
                 hidden:false,disabled:false,textContent:'',
@@ -38,7 +41,7 @@ function fixture({ios=false, standalone=false, secure=true, registrationFailure=
     };
     vm.runInNewContext(fs.readFileSync('assets/install.js','utf8'),context);
     return {
-        nodes,events,container,display,attributes,
+        nodes,events,container,display,attributes,classes,
         click:()=>events.click({target:{closest:()=>nodes.get('#install-app')}}),
     };
 }
@@ -78,6 +81,19 @@ test('Standalone launch and completed installation hide the installation command
     const page=fixture();
     page.events.appinstalled();
     assert.equal(page.container.hidden,true);
+});
+test('PWA compact header follows Android display mode and Apple standalone without changing browser layout',()=>{
+    const page=fixture();
+    assert.equal(page.classes.has('pwa-standalone'),false);
+    page.display.matches=true;page.events.display();
+    assert.equal(page.classes.has('pwa-standalone'),true);
+    page.display.matches=false;page.events.display();
+    assert.equal(page.classes.has('pwa-standalone'),false);
+    assert.equal(fixture({ios:true,iosStandalone:true}).classes.has('pwa-standalone'),true);
+    const css=fs.readFileSync('assets/app.css','utf8');
+    assert.match(css,/@media \(display-mode: standalone\)/);
+    assert.match(css,/#local-sync-status\[role="status"\]/);
+    assert.match(fs.readFileSync('index.php','utf8'),/class="report-list-intro"/);
 });
 
 test('HTTP and service worker failures explain the installation blocker', async () => {
