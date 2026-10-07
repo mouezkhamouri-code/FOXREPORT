@@ -176,7 +176,8 @@ body.pwa-standalone #local-sync-status[role="status"] { display: none; }
 .field input, .field select, .field textarea, .device-table input, .device-table select { width: 100%; min-width: 0; border: 1px solid var(--line); border-radius: 8px; outline: 0; background: var(--white); color: var(--ink); font-size: 13px; font-weight: 450; transition: border .15s ease, box-shadow .15s ease; }
 .field input, .field select { height: 43px; padding: 0 12px; }
 .field textarea { min-height: 102px; padding: 11px 12px; resize: vertical; }
-.field input:focus, .field select:focus, .field textarea:focus, .device-table input:focus, .device-table select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px #176B7526; }
+.report-form .field .is-empty, .report-form .device-table .is-empty { background: #FFF4E8; border-color: #E8BE91; }
+.field input:focus, .field select:focus, .field textarea:focus, .device-table input:focus, .device-table select:focus, .report-form .field .is-empty:focus, .report-form .device-table .is-empty:focus { border-color: var(--accent); box-shadow: 0 0 0 3px #176B7526; }
 .field-floating { position: relative; gap: 4px; font-size: 16px; }
 .field-floating input, .field-floating select { height: 58px; padding: 22px 12px 6px; font-size: 17px; }
 .field-floating textarea { padding: 26px 12px 10px; font-size: 17px; }

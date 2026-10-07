@@ -4,6 +4,14 @@
     const form = document.querySelector('#report-form');
     if (!form) return;
 
+    function updateEmptyFields() {
+        document.querySelectorAll('.report-form .field input, .report-form .field textarea, .report-form .field select, .report-form .device-table input, .report-form .device-table select').forEach(control => {
+            const editable = !control.readOnly && !['hidden', 'checkbox', 'radio', 'file', 'button', 'submit'].includes(control.type);
+            control.classList.toggle('is-empty', editable && control.value.trim() === '');
+        });
+    }
+    updateEmptyFields();
+
     const dateInput = document.querySelector('[name="report_date"]');
     const dayNumber = document.querySelector('#report-day-number');
     function updateDayNumber() {
@@ -40,6 +48,7 @@
         updateSectionStates();
     }
     function invalidatePanel(event) {
+        updateEmptyFields();
         const panel = event.target.closest('[data-section-panel]');
         if (!panel || event.target.type === 'file') return;
         const number = Number(panel.dataset.sectionPanel);
@@ -48,6 +57,7 @@
     form.addEventListener('input', invalidatePanel);
     form.addEventListener('change', invalidatePanel);
     form.addEventListener('fox-section-edit', event => {
+        updateEmptyFields();
         invalidateSections(event.detail.sections);
         form.dispatchEvent(new Event('fox-change'));
     });
@@ -121,6 +131,7 @@
     });
     form.addEventListener('fox-sections-restored', () => {
         updateDayNumber();
+        updateEmptyFields();
         showSection(activeSectionField.value);
         if (JSON.parse(completedField?.value || '[]').includes(Number(activeSectionField.value))) {
             const accordion = accordions.find(item => item.dataset.sectionAccordion === activeSectionField.value);
@@ -159,6 +170,7 @@
     }
 
     function updateDevices() {
+        updateEmptyFields();
         if (!deviceRows) return;
         const counts = new Map();
         deviceRows.querySelectorAll('.device-row select[name$="[category]"]').forEach((select) => {

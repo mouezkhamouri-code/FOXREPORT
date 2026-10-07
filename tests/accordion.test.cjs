@@ -30,15 +30,31 @@ test('Stacked accordions explicitly complete empty sections, retain data and res
     });
     const date = {value:'2024-12-31',addEventListener:(name,callback)=>{handlers[`date-${name}`]=callback;}};
     const day = {};
+    const emptyControls = ['', '   ', '0', '1', 'Synthetic', ''].map((value,index)=>{
+        const classes = new Set();
+        return {value,type:index===2?'select-one':'text',readOnly:index===5,classes,
+            classList:{toggle:(name,on)=>on?classes.add(name):classes.delete(name)}};
+    });
     const nodes = {'#report-form':form,'#active-section':active,'#previous-step':previous,'#next-step':next,'#step-progress':progress,'[name="report_date"]':date,'#report-day-number':day};
     const context = {
         document:{
             querySelector:name=>nodes[name]||null,
-            querySelectorAll:name=>name==='[data-section-accordion]'?accordions:[],
+            querySelectorAll:name=>name==='[data-section-accordion]'?accordions:name.startsWith('.report-form .field input')?emptyControls:[],
         },
         Event:class {constructor(type) {this.type=type;}},
     };
     vm.runInNewContext(fs.readFileSync('assets/app.js','utf8'),context);
+    assert.deepEqual(emptyControls.map(control=>control.classes.has('is-empty')),[true,true,false,false,false,false]);
+    emptyControls[0].value='Completed';
+    emptyControls[4].value='';
+    handlers.input({target:{closest:()=>null}});
+    assert.equal(emptyControls[0].classes.has('is-empty'),false);
+    assert.equal(emptyControls[4].classes.has('is-empty'),true);
+    emptyControls[0].value='';
+    emptyControls[4].value='Restored';
+    handlers['fox-sections-restored']();
+    assert.equal(emptyControls[0].classes.has('is-empty'),true);
+    assert.equal(emptyControls[4].classes.has('is-empty'),false);
     assert.equal(day.value,'366');
     date.value='2025-12-31';handlers['date-input']();assert.equal(day.value,'365');
     date.value='2024-03-01';handlers['date-change']();assert.equal(day.value,'61');

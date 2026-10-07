@@ -12,6 +12,8 @@ Les informations commerciales sont regroupées par lignes sur grand écran et em
 
 La première section est renommée **INFORMATIONS COMMERCIALES**, dans le formulaire et le PDF, sans changer son identifiant ni ses validations existantes.
 
+Dans l'éditeur, les champs vides ont un fond orange léger, actualisé à la saisie et après restauration hors ligne. Ce repère visuel concerne aussi les champs facultatifs, sans les rendre obligatoires ni modifier la validation. Les valeurs « Non » et zéro restent considérées comme renseignées ; les champs calculés en lecture seule ne sont pas signalés.
+
 Pour une base existante, après sauvegarde et vérification que `sales_rep_id` n'existe pas déjà, exécutez **une seule fois** `database/migrations/005-salespeople.sql`. Pour une nouvelle base, le schéma inclut l'annuaire. Sans cette migration, l'éditeur signale explicitement le schéma incomplet et ne prétend pas sauvegarder une sélection. En PWA, les choix de noms sont inclus dans le modèle privé IndexedDB préparé en ligne ; téléphone et e-mail ne sont pas inclus dans ce modèle. La création exige le réseau. Après ajout d'un commercial, revenez à l'accueil en ligne pour actualiser le modèle avant utilisation hors connexion.
 
 1. Dans IONOS, créez une base MySQL et un utilisateur dédiés à FoxReport. Ne choisissez pas une base PLANESTO.
