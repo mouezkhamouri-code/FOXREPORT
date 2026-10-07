@@ -77,6 +77,8 @@
     let local;
     let timer;
     let syncing=false;
+    let resolving=false;
+    let resolutionFinished=false;
     let refreshedPhotoIds=new Set();
     let photoCacheReady=false;
     const pageHtml='<!doctype html>'+document.documentElement.outerHTML;
@@ -85,6 +87,7 @@
         && name!=='csrf_token' && !(value instanceof File));
     async function persist(dirty=true) {
         saving=saving.then(async()=>{
+            if (resolutionFinished) return;
             const previousVersion=local?.version || 0;
             const entries=entriesFromForm();
             const photos=window.FoxPhotos?.get() || [];
@@ -105,7 +108,10 @@
             };
             try {
                 local=await FoxLocal.update(key,current=>{
-                    if (current?.conflictResolved) throw new Error('Ce conflit est archivé. Ouvrez sa copie depuis les brouillons locaux.');
+                    if (current?.conflictResolved) {
+                        if (!contentChanged) return current;
+                        throw new Error('Ce conflit est archivé. Ouvrez sa copie depuis les brouillons locaux.');
+                    }
                     if (contentChanged && current && (current.version || 0)!==previousVersion) {
                         throw new Error('Ce brouillon local a été modifié dans une autre fenêtre.');
                     }
@@ -128,7 +134,10 @@
                 conflict.hidden=false;
                 throw new Error(`${error.message} Vos saisies sont conservées dans une copie locale en conflit.`);
             }
-            if (local.dirty) notify(navigator.onLine?'À synchroniser':'Hors ligne — enregistré sur cet appareil');
+            if (local.conflictResolved) {
+                resolutionFinished=true;conflict.hidden=true;
+                notify('Conflit résolu dans une autre fenêtre · original archivé. Rechargez le rapport.');
+            } else if (local.dirty) notify(navigator.onLine?'À synchroniser':'Hors ligne — enregistré sur cet appareil');
         });
         try { await saving; }
         catch (error) { saving=Promise.resolve(); notify(`Erreur · ${error.message}`); throw error; }
@@ -157,7 +166,7 @@
         form.dispatchEvent(new Event('fox-sections-restored'));
     }
     async function sync(status='draft') {
-        if (!editable || syncing) return;
+        if (!editable || syncing || resolving || resolutionFinished) return;
         clearTimeout(timer);
         await saving;
         if (!navigator.onLine) { notify('Hors ligne — enregistré sur cet appareil'); return; }
@@ -192,6 +201,13 @@
             if(local) key=local.key;
         }
         if (local?.conflictResolved) {
+            if (document.body.dataset.localSnapshot!=='true') {
+                key=`${user}:server-${id}`;
+                local=await FoxLocal.get(key);
+            }
+        }
+        if (local?.conflictResolved) {
+            conflict.hidden=true;
             restore(local.entries);
             await window.FoxPhotos?.restore(local.photos || []);
             window.FoxPhotos?.restoreSaved(local.savedPhotos || []);
@@ -241,6 +257,7 @@
         if(editable) {
             if(local?.conflict && local.error) conflict.querySelector('p').textContent=local.error;
             const changed=()=>{
+                if (resolving || resolutionFinished) return;
                 clearTimeout(timer);
                 persist().then(()=>{timer=setTimeout(()=>sync().catch(showError),1800);}).catch(showError);
             };
@@ -257,9 +274,15 @@
             window.addEventListener('online',()=>sync().catch(showError));
             window.addEventListener('pageshow',()=>{if(navigator.onLine)sync().catch(showError);});
             document.addEventListener('visibilitychange',()=>{if(!document.hidden && navigator.onLine)sync().catch(showError);});
-            document.querySelector('#conflict-server')?.addEventListener('click',async()=>{
+            document.querySelector('#conflict-server')?.addEventListener('click',async event=>{
+                if (resolving || resolutionFinished) return;
                 if(!navigator.onLine) { notify('Réseau requis pour vérifier la version serveur.'); return; }
+                resolving=true;form.inert=true;clearTimeout(timer);
+                const button=event.currentTarget;button.disabled=true;
                 try {
+                    await window.FoxPhotos?.whenReady();
+                    await persist();
+                    await saving;
                     const response=await fetch(`index.php?id=${local.serverId || id}`,{cache:'no-store'});
                     if(!response.ok) throw new Error('Version serveur indisponible : copie locale conservée.');
                     const html=await response.text();
@@ -267,26 +290,38 @@
                     if(page.querySelector('[name="report_id"]')?.value!==String(local.serverId || id)) {
                         throw new Error('Rapport serveur non confirmé : copie locale conservée. Reconnectez-vous si nécessaire.');
                     }
-                    if(!confirm('La version serveur est disponible. Abandonner explicitement les modifications et photos locales ?')) return;
-                    await FoxLocal.remove(key);
+                    if(!confirm('Utiliser la version serveur ? Les saisies et photos locales seront conservées dans une archive, sans synchronisation.')) return;
+                    await FoxSync.resolveServer(key);
+                    resolutionFinished=true;conflict.hidden=true;
+                    notify('Conflit résolu · version serveur choisie, original archivé.');
                     location.href=`index.php?id=${local.serverId || id}`;
                 } catch(error) { showError(error); }
+                finally { resolving=false;button.disabled=false;form.inert=resolutionFinished; }
             });
             document.querySelector('#conflict-copy')?.addEventListener('click',async event=>{
+                if (resolving || resolutionFinished) return;
+                resolving=true;form.inert=true;
                 const button=event.currentTarget;button.disabled=true;
                 try {
                     clearTimeout(timer);
                     await window.FoxPhotos?.whenReady();
                     await persist();
                     const copy=await FoxSync.copyConflict(key);
+                    resolutionFinished=true;conflict.hidden=true;
+                    notify('Conflit résolu · original archivé, nouveau rapport prêt.');
                     location.href=`offline.html?id=${encodeURIComponent(copy.id)}`;
                 } catch(error) { showError(error); }
-                finally { button.disabled=false; }
+                finally { resolving=false;button.disabled=false;form.inert=resolutionFinished; }
             });
             if(navigator.onLine) await sync();
         }
-        document.addEventListener('fox-photos-cached',()=>{photoCacheReady=true;persist(false).catch(showError);});
+        document.addEventListener('fox-photos-cached',()=>{
+            photoCacheReady=true;
+            if (!resolving && !resolutionFinished) persist(false).catch(showError);
+        });
         window.FoxBeforeUpdate=async()=>{
+            if (resolving) throw new Error('Résolution du conflit en cours. Attendez sa confirmation avant la mise à jour.');
+            if (resolutionFinished) return;
             await window.FoxPhotos?.whenReady();
             await persist(editable);
             await saving;

@@ -151,6 +151,12 @@
         return JSON.stringify({...record,photos:(record.photos || []).map(photo=>({...photo,blob:{size:photo.blob?.size,type:photo.blob?.type}})),
             savedPhotos:(record.savedPhotos || []).map(photo=>({...photo,blob:{size:photo.blob?.size,type:photo.blob?.type}}))});
     }
+    async function resolveServer(key) {
+        return FoxLocal.update(key,current=>{
+            if (!current?.conflict || current.conflictResolved) throw new Error('Ce conflit n’est plus actif. Rechargez les brouillons locaux.');
+            return {...current,conflictResolved:true,resolution:'server',resolvedAt:Date.now(),version:(current.version || 0)+1};
+        });
+    }
     async function copyConflict(key) {
         const source=await FoxLocal.get(key);
         if (!source?.conflict || source.conflictResolved) throw new Error('Ce conflit n’est plus actif. Rechargez les brouillons locaux.');
@@ -213,5 +219,5 @@
             row.append(text,link);container.append(row);
         }
     }
-    window.FoxSync = {syncRecord,syncAll,cacheTemplate,createDraft,pendingState,copyConflict,renderConflicts};
+    window.FoxSync = {syncRecord,syncAll,cacheTemplate,createDraft,pendingState,copyConflict,resolveServer,renderConflicts};
 })();

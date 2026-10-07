@@ -36,7 +36,9 @@
             for(const file of ['assets/app.js','assets/photos.js','assets/scanner.js','assets/location.js','assets/pwa.js']) {
                 await new Promise((resolve,reject)=>{
                     const script=document.createElement('script');
-                    script.src=file;script.onload=resolve;script.onerror=()=>reject(new Error(`Ressource hors ligne absente : ${file}`));
+                    const version=document.documentElement.dataset.appVersion;
+                    script.src=version?`${file}?v=${encodeURIComponent(version)}`:file;
+                    script.onload=resolve;script.onerror=()=>reject(new Error(`Ressource hors ligne absente : ${file}`));
                     document.head.append(script);
                 });
             }

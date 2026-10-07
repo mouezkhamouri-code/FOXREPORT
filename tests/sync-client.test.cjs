@@ -195,3 +195,15 @@ test('Archive transaction failure keeps the original active and the unconfirmed 
     assert.equal(await copy.photos[0].blob.text(),'test');
     await page.api.syncAll('test');assert.equal(page.calls.length,0);
 });
+test('Choosing the server archives rather than deletes local data and stops the active conflict notice',async()=>{
+    const page=fixture(),record=draft();record.conflict=true;record.operation={requestId:'original'};
+    page.records.set(record.key,record);
+    await page.api.resolveServer(record.key);
+    const archive=page.records.get(record.key);
+    assert.equal(archive.conflictResolved,true);assert.equal(archive.resolution,'server');
+    assert.deepEqual(archive.entries,record.entries);
+    assert.equal(archive.operation.requestId,'original');
+    assert.equal(await archive.photos[0].blob.text(),'test');
+    assert.equal((await page.api.pendingState('test')).drafts,0);
+    await page.api.syncAll('test');assert.equal(page.calls.length,0);
+});
