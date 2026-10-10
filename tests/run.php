@@ -250,7 +250,7 @@ try {
         && substr_count($longDevicesBytes, mb_convert_encoding('Numéro de série / MAC', 'UTF-16BE', 'UTF-8')) >= 2,
         'Long device list paginates without truncation and repeats its common header');
     check(str_contains($html, 'BROUILLON') && str_contains($html, '☑'), 'Draft status and training checklist included');
-    check(str_contains($html, 'Suivi intervention') && str_contains($html, '2026-10-07') && str_contains($html, 'Synthetic follow-up &lt;script&gt;escaped&lt;/script&gt;'), 'Dated follow-up included in PDF with escaped comments');
+    check(str_contains($html, 'followup-history') && str_contains($html, '07/10/2026') && str_contains($html, 'Synthetic follow-up &lt;script&gt;escaped&lt;/script&gt;'), 'Dated follow-up included in PDF with escaped comments');
     $pdf = renderReportPdf($report, $devices, $photos);
     check($pdf->getCanvas()->get_page_count() > 8, 'Long text paginates instead of truncating');
     $imageWarnings = array_filter($GLOBALS['_dompdf_warnings'] ?? [], static fn(string $warning): bool => str_contains($warning, 'Image'));

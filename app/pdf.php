@@ -58,7 +58,7 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
     global $sections, $deviceCategories, $trainingTopics;
     $fields = [
         12 => [],
-        13 => ['order_date'=>'Date de commande', 'report_date'=>'Date de l’intervention', 'intervention_id'=>'Identifiant intervention', 'author'=>'Rédacteur'],
+        13 => [],
         1 => [
             'establishment' => 'Établissement', 'address' => 'Adresse',
             'postal_code'=>'Code postal', 'city'=>'Ville',
@@ -190,6 +190,9 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
         .location { page-break-inside: avoid; margin: 4mm 0; }
         .location img { width: 176mm; height: 99mm; }
         .check { padding: 2mm 0; }
+        .followup-intro { color: #596579; margin: 0 0 4mm; }
+        .followup-history { margin: 0; padding-left: 5mm; }
+        .followup-history li { margin-bottom: 3mm; line-height: 1.5; }
         .training-theme-title { margin-top: 3mm; font-weight: bold; }
         .training-count { font-weight: normal; color: #555; }
         .training-na { color: #999; }
@@ -290,12 +293,15 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
         }
         if ($rows !== '') $html .= '<table class="fields">' . $rows . '</table>';
         if ($number === 13) {
-            $html .= '<h3>Suivi intervention</h3>';
+            $html .= '<p class="followup-intro">Voici l’historique de la prise de contact avec le client pour organiser l’intervention.</p>';
             $followup = interventionFollowup($report['intervention_followup'] ?? null);
-            if ($followup === []) $html .= '<p class="placeholder">Aucun suivi enregistré.</p>';
+            if ($followup === []) $html .= '<p class="placeholder">Aucun échange enregistré.</p>';
+            else $html .= '<ul class="followup-history">';
             foreach ($followup as $row) {
-                $html .= '<h3>' . pdfEscape($row['date']) . '</h3><div class="notes">' . pdfEscape($row['comment']) . '</div>';
+                $date = DateTimeImmutable::createFromFormat('!Y-m-d', $row['date'])->format('d/m/Y');
+                $html .= '<li><strong>' . pdfEscape($date) . '</strong> — ' . nl2br(pdfEscape($row['comment'])) . '</li>';
             }
+            if ($followup !== []) $html .= '</ul>';
         }
         if ($number === 3) {
             $counts = array_fill_keys(array_keys($deviceCategories), 0);
