@@ -1111,7 +1111,7 @@ try {
 <main class="page-shell">
     <p id="local-sync-status" role="status" hidden>Vérification des données locales…</p>
     <?php if (!$isEditor): ?>
-        <section class="page-heading">
+        <section class="page-heading report-list-heading">
             <div class="report-list-intro">
                 <p class="eyebrow">VOTRE ACTIVITÉ</p>
                 <h1>Rapports d’intervention</h1>

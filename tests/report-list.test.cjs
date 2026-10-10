@@ -130,8 +130,8 @@ test('Actions opens and closes native popup without navigating; polling preserve
 });
 test('Card layout uses exact requested spacing and keeps refresh status off the visual layout',()=>{
     const css=fs.readFileSync('assets/app.css','utf8');
-    assert.match(css,/\.report-cards \{[^}]*gap: 20px;/);
-    assert.match(css,/\.report-card \{[^}]*padding: 20px;/);
+    assert.match(css,/\.report-cards \{[^}]*gap: 14px;/);
+    assert.match(css,/\.report-card \{[^}]*padding: 16px;/);
     assert.match(css,/\.page-shell \{ width: calc\(100% - 32px\);/);
     assert.match(css,/\.report-card-open \{ flex: 1;/);
     assert.doesNotMatch(css,/\.report-card-open \{[^}]*position: absolute/);

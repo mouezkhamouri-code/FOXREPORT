@@ -8,6 +8,26 @@ function reportListEscape(string $text): string
     return htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
+function reportListIcon(string $name): string
+{
+    $paths = [
+        'pin' => '<path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/>',
+        'phone' => '<path d="m6 3 3 4-2 3a15 15 0 0 0 7 7l3-2 4 3c-1 4-4 4-6 3A23 23 0 0 1 3 9C2 6 3 3 6 3Z"/>',
+        'more' => '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+    ];
+    return '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' . $paths[$name] . '</svg>';
+}
+
+function reportListDate(string $date): string
+{
+    $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+    if (!$parsed || $parsed->format('Y-m-d') !== $date) {
+        return $date ?: 'Date à renseigner';
+    }
+    $months = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+    return $parsed->format('j') . ' ' . $months[(int) $parsed->format('n') - 1] . ' ' . $parsed->format('Y');
+}
+
 function loadReportList(PDO $pdo): array
 {
     $columns = array_merge(['id', 'revision', 'report_type', 'status', 'updated_at'], FOXREPORT_COMPLETION_FIELDS);
@@ -65,7 +85,10 @@ function renderReportList(array $reports, string $csrfToken = '', string $filter
                 $dialogId = 'report-actions-' . (int) $row['id'];
                 ?>
                 <article class="report-card report-card-<?= $tone ?>">
-                    <h3 class="report-card-name" title="<?= reportListEscape($name) ?>"><?= reportListEscape($name) ?></h3>
+                    <div class="report-card-heading">
+                        <h3 class="report-card-name" title="<?= reportListEscape($name) ?>"><?= reportListEscape($name) ?></h3>
+                        <span class="report-card-status <?= $row['status'] === 'finalized' ? 'is-closed' : '' ?>"><?= $row['status'] === 'finalized' ? 'Clôturé' : 'Ouvert' ?></span>
+                    </div>
                     <?php
                     $address = trim((string) ($row['address'] ?? ''));
                     $contact = trim((string) ($row['contact_name'] ?? ''));
@@ -76,17 +99,21 @@ function renderReportList(array $reports, string $csrfToken = '', string $filter
                     ?>
                     <?php if ($address !== ''): ?>
                         <div class="report-card-address">
+                            <?= reportListIcon('pin') ?>
                             <a href="https://www.google.com/maps/search/?api=1&amp;query=<?= rawurlencode($address) ?>" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir Maps : <?= reportListEscape($address) ?>"><?= reportListEscape($address) ?></a>
                             <a class="report-card-waze" href="https://www.waze.com/ul?q=<?= rawurlencode($address) ?>&amp;navigate=yes" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir Waze : <?= reportListEscape($address) ?>">Waze</a>
                         </div>
                     <?php endif; ?>
                     <?php if ($contact !== '' || $phone !== ''): ?>
                         <div class="report-card-contact">
+                            <?= reportListIcon('phone') ?>
+                            <div class="report-card-contact-details">
                             <?php if ($contact !== ''): ?><strong><?= reportListEscape($contact) ?></strong><?php endif; ?>
                             <?php if ($phone !== ''): ?>
                                 <?php if ($callable): ?><a href="tel:<?= reportListEscape($dial) ?>" aria-label="Appeler <?= reportListEscape($contact !== '' ? $contact : $phone) ?>"><?= reportListEscape($phone) ?></a>
                                 <?php else: ?><span><?= reportListEscape($phone) ?></span><?php endif; ?>
                             <?php endif; ?>
+                            </div>
                         </div>
                     <?php endif; ?>
                     <div class="report-card-completion">
@@ -94,13 +121,13 @@ function renderReportList(array $reports, string $csrfToken = '', string $filter
                             <strong role="alert" title="Remplissage indisponible : checklist invalide, à corriger dans ce rapport.">Remplissage indisponible</strong>
                         <?php else: ?>
                             <strong><?= $percent ?> % <span>rempli</span></strong>
+                            <progress class="report-card-progress-bar" value="<?= (int) $percent ?>" max="100" aria-label="Remplissage du rapport : <?= reportListEscape($name) ?>"><?= $percent ?> %</progress>
                         <?php endif; ?>
-                        <span><?= $row['status'] === 'finalized' ? 'Clôturé' : 'Ouvert' ?></span>
+                        <time class="report-card-date" datetime="<?= reportListEscape($row['report_date'] ?? '') ?>"><?= reportListEscape(reportListDate($row['report_date'] ?? '')) ?></time>
                     </div>
-                    <span class="report-card-date"><?= reportListEscape($row['report_date'] ?: 'Date à renseigner') ?></span>
                     <div class="report-card-footer">
-                        <a class="button button-primary report-card-open" href="index.php?id=<?= (int) $row['id'] ?>" aria-label="Ouvrir le rapport : <?= reportListEscape($name) ?>">OUVRIR</a>
-                        <button type="button" class="button button-secondary report-actions-open" data-dialog="<?= $dialogId ?>" aria-haspopup="dialog" aria-controls="<?= $dialogId ?>" aria-label="Actions du rapport : <?= reportListEscape($name) ?>">Actions</button>
+                        <a class="button button-primary report-card-open" href="index.php?id=<?= (int) $row['id'] ?>" aria-label="Ouvrir le rapport : <?= reportListEscape($name) ?>">Ouvrir</a>
+                        <button type="button" class="button button-secondary report-actions-open" data-dialog="<?= $dialogId ?>" aria-haspopup="dialog" aria-controls="<?= $dialogId ?>" aria-label="Actions du rapport : <?= reportListEscape($name) ?>"><?= reportListIcon('more') ?>Actions</button>
                     </div>
                     <dialog id="<?= $dialogId ?>" class="report-actions-dialog" aria-labelledby="<?= $dialogId ?>-title">
                         <h2 id="<?= $dialogId ?>-title"><?= reportListEscape($name) ?></h2>
