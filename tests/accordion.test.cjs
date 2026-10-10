@@ -8,7 +8,7 @@ test('Stacked accordions explicitly complete empty sections, retain data and res
     const active = {value:'1'};
     const completed = {value:'[]'};
     const form = {
-        elements:{completed_sections:completed},
+        elements:{completed_sections:completed},querySelector:()=>null,
         addEventListener:(name,callback)=>{handlers[name]=callback;},
         dispatchEvent:event=>{if (event.type==='fox-change') changes++;},
     };

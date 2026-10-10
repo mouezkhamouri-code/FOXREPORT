@@ -57,7 +57,7 @@ function validateLandscapePhoto(string $source, array $info): void
     }
 }
 
-function normalizePhoto(string $source, string $destination): void
+function normalizePhoto(string $source, string $destination, bool $square = false): void
 {
     $info = validatePhotoSource($source);
     $image = imageOperation(static fn() => match ($info[2]) {
@@ -89,16 +89,27 @@ function normalizePhoto(string $source, string $destination): void
                 $image = $rotated;
             }
         }
-        $scale = min(1, FOXREPORT_PHOTO_EDGE / max(imagesx($image), imagesy($image)));
-        $width = max(1, (int) round(imagesx($image) * $scale));
-        $height = max(1, (int) round(imagesy($image) * $scale));
+        $sourceX = 0;
+        $sourceY = 0;
+        $sourceWidth = imagesx($image);
+        $sourceHeight = imagesy($image);
+        if ($square && $sourceWidth !== $sourceHeight) {
+            // Centered crop keeps legacy or non-JavaScript uploads square in square-only sections.
+            $edge = min($sourceWidth, $sourceHeight);
+            $sourceX = intdiv($sourceWidth - $edge, 2);
+            $sourceY = intdiv($sourceHeight - $edge, 2);
+            $sourceWidth = $sourceHeight = $edge;
+        }
+        $scale = min(1, FOXREPORT_PHOTO_EDGE / max($sourceWidth, $sourceHeight));
+        $width = max(1, (int) round($sourceWidth * $scale));
+        $height = max(1, (int) round($sourceHeight * $scale));
         do {
             $thumbnail = imagecreatetruecolor($width, $height);
             if (!$thumbnail instanceof GdImage) {
                 throw new RuntimeException('Impossible de créer la photo réduite.');
             }
             imagefill($thumbnail, 0, 0, imagecolorallocate($thumbnail, 255, 255, 255));
-            imagecopyresampled($thumbnail, $image, 0, 0, 0, 0, $width, $height, imagesx($image), imagesy($image));
+            imagecopyresampled($thumbnail, $image, 0, 0, $sourceX, $sourceY, $width, $height, $sourceWidth, $sourceHeight);
             foreach ([82, 72, 62, 52] as $quality) {
                 $written = imageOperation(static fn() => imagejpeg($thumbnail, $destination, $quality));
                 if (!$written) {

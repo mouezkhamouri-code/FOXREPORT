@@ -7,6 +7,8 @@
     let reloading=false;
     let latest='';
     const current=()=>document.body.dataset.appVersion || 'inconnue';
+    const versionLabel=document.querySelector('[data-version-label]');
+    if (versionLabel) versionLabel.textContent=`Version ${document.body.dataset.releaseVersion || 'inconnue'}`;
     function render(message) {
         const container=document.querySelector('[data-update-container]');
         if (!container) return;

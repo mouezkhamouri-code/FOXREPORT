@@ -44,6 +44,16 @@ function draft() {
         savedPhotos:[],revision:1,dirty:true,version:2,pendingChanges:2,
     };
 }
+test('Malformed or empty server responses expose the HTTP status instead of a JSON parser error',async()=>{
+    const page=fixture(),record=draft();
+    page.records.set(record.key,record);
+    page.setBehavior(async url=>{
+        if(url.includes('session'))return {ok:true,json:async()=>({user:'test',csrf:'csrf'})};
+        if(url.includes('create'))return {ok:true,json:async()=>({id:5,revision:1,status:'draft'})};
+        return {ok:false,status:500,text:async()=>''};
+    });
+    await assert.rejects(page.api.syncRecord(record.key),/Réponse serveur invalide|Requête refusée \(500\).*réponse vide/);
+});
 test('Deleting a photo while its upload is in flight keeps the removal pending and never revives its local cache',async()=>{
     const page=fixture(),record=draft();
     record.entries.push(['photo_order',JSON.stringify(['photo1'])],['photo_deleted','[]']);
@@ -69,12 +79,14 @@ test('A conflict copy remaps photo order to new local IDs and does not delete ph
     const page=fixture(),record=draft();
     record.conflict=true;
     record.savedPhotos=[{...record.photos[0],id:'saved-photo'}];
-    record.entries.push(['photo_order','["saved-photo","photo1"]'],['photo_deleted','["removed-photo"]']);
+    record.entries.push(['photo_order','["saved-photo","photo1"]'],['photo_deleted','["removed-photo"]'],['photo_captions','{"saved-photo":"Nouvelle légende"}']);
     page.records.set(record.key,record);
     const copy=await page.api.copyConflict(record.key);
     const order=JSON.parse(copy.entries.find(([name])=>name==='photo_order')[1]);
     assert.deepEqual(order,[copy.photos[1].id,copy.photos[0].id]);
     assert.equal(copy.entries.find(([name])=>name==='photo_deleted')[1],'[]');
+    assert.equal(copy.entries.find(([name])=>name==='photo_captions')[1],'{}');
+    assert.equal(copy.photos[1].caption,'Nouvelle légende');
 });
 test('Offline synchronization never sends or removes local drafts and photos',async()=>{
     const page=fixture();page.context.navigator.onLine=false;

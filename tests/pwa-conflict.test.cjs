@@ -12,14 +12,14 @@ async function fixture({snapshot=true,record}={}) {
     const form={elements,querySelector:selector=>selector==='fieldset'?fieldset:null,querySelectorAll:()=>[],
         dispatchEvent:()=>{},addEventListener:(name,fn)=>{handlers[name]=fn;}};
     const conflict={hidden:true,querySelector:()=>({textContent:''})},state={textContent:''};
-    const buttons=Object.fromEntries(['#conflict-copy','#conflict-server'].map(name=>[name,{disabled:false,addEventListener:(_,fn)=>{handlers[name]=fn;}}]));
+    const buttons=Object.fromEntries(['#conflict-copy','#conflict-server','.report-preview'].map(name=>[name,{disabled:false,addEventListener:(_,fn)=>{handlers[name]=fn;}}]));
     const pending={after:()=>{},setAttribute:()=>{}};
     const selectors={'#report-form':form,'#sync-conflict':conflict,'#sync-state':state,'#local-sync-status':pending,'#active-section':elements.active_section,...buttons};
     const original=record || {key:'test:7',id:'7',serverId:7,user:'test',revision:3,version:1,entries:controls.map(control=>[control.name,control.value]),
         photos:[],savedPhotos:[],dirty:true,conflict:true,error:'Old conflict',title:'Synthetic',section:1};
     records.set(original.key,structuredClone(original));
     const context={
-        window:{addEventListener:()=>{}},document:{body:{dataset:{user:'test',localSnapshot:snapshot?'true':''}},
+        window:{addEventListener:()=>{},open:()=>null},URL,document:{body:{dataset:{user:'test',localSnapshot:snapshot?'true':''}},
             documentElement:{outerHTML:'synthetic'},querySelector:selector=>selectors[selector] || null,
             createElement:()=>({}),addEventListener:(name,fn)=>{events[name]=fn;}},
         location:{href:''},navigator:{onLine:true},crypto,Event,File:globalThis.File,
@@ -39,6 +39,7 @@ async function fixture({snapshot=true,record}={}) {
         fetch:async()=>({ok:true,text:async()=>'<server>'}),
         DOMParser:class {parseFromString(){return {querySelector:()=>({value:'7'})};}},
     };
+    context.window.FoxAppMode={usesLocalReports:()=>true};
     context.window.FoxLocal=context.FoxLocal;context.window.FoxSync=context.FoxSync;
     context.window.FoxPhotos={get:()=>[],getSaved:()=>[],restore:async()=>{},restoreSaved:()=>{},whenReady:async()=>{}};
     await vm.runInNewContext(fs.readFileSync('assets/pwa.js','utf8'),context);
@@ -105,4 +106,36 @@ test('An old editor cannot recreate a locally removed draft during photo/input c
     assert.equal(page.records.size,1);
     assert.equal(page.records.get('test:7').localDeleted,true);
     assert.equal(page.records.get('test:7').entries.length,0);
+});
+test('Preview syncs pending photos first, then opens the PDF of the synchronized revision',async()=>{
+    const page=await fixture({record:{key:'test:7',id:'7',serverId:7,user:'test',revision:3,version:1,
+        entries:[['report_id','7'],['revision','3'],['establishment','Synthetic'],['active_section','1']],
+        photos:[{id:'pending-photo'}],savedPhotos:[],dirty:true,title:'Synthetic',section:1}});
+    const calls=[];
+    const viewer={document:{body:{}},location:{},close:()=>calls.push('close')};
+    page.context.location.href='https://fox.test/index.php?id=7';
+    page.context.window.open=()=>{calls.push('open');return viewer;};
+    page.context.FoxSync.syncRecord=async key=>{
+        calls.push('sync');
+        const record=page.records.get(key);
+        page.records.set(key,{...record,dirty:false,operation:undefined,revision:4,photos:[],savedPhotos:[{id:'pending-photo'}]});
+    };
+    let prevented=false;
+    await page.handlers['.report-preview']({preventDefault:()=>{prevented=true;},currentTarget:{getAttribute:()=>null}});
+    assert.equal(prevented,true);
+    assert.deepEqual(calls,['open','sync']);
+    assert.equal(viewer.location.href,'https://fox.test/rapport.php?id=7&revision=4');
+});
+test('Preview offline with pending changes keeps the form and does not open a stale PDF',async()=>{
+    const page=await fixture({record:{key:'test:7',id:'7',serverId:7,user:'test',revision:3,version:1,
+        entries:[['report_id','7'],['revision','3'],['establishment','Synthetic'],['active_section','1']],
+        photos:[{id:'pending-photo'}],savedPhotos:[],dirty:true,title:'Synthetic',section:1}});
+    const calls=[];
+    const viewer={document:{body:{}},location:{},close:()=>calls.push('close')};
+    page.context.navigator.onLine=false;
+    page.context.window.open=()=>{calls.push('open');return viewer;};
+    await page.handlers['.report-preview']({preventDefault:()=>{},currentTarget:{getAttribute:()=>null}});
+    assert.deepEqual(calls,['open','close']);
+    assert.equal(viewer.location.href,undefined);
+    assert.match(page.state.textContent,/Hors ligne — prévisualisation/);
 });

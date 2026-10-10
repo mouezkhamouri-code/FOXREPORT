@@ -26,6 +26,22 @@ function photoStateInput(array $input): array
         if (count(array_unique($keys)) !== count($keys)) throw new RuntimeException('Une photo apparaît plusieurs fois dans l’organisation.');
         $state[$name] = $keys;
     }
+    $value = $input['photo_captions'] ?? '{}';
+    if (!is_string($value) || strlen($value) > 200000) throw new RuntimeException('Légendes des photos invalides.');
+    try {
+        $captions = json_decode($value === '' ? '{}' : $value, true, 512, JSON_THROW_ON_ERROR);
+    } catch (JsonException) {
+        throw new RuntimeException('Légendes des photos illisibles.');
+    }
+    if (!is_array($captions) || ($captions !== [] && array_is_list($captions)) || count($captions) > 500) throw new RuntimeException('Légendes des photos invalides.');
+    $state['photo_captions'] = [];
+    foreach ($captions as $key => $caption) {
+        if (!is_string($key) || !preg_match('/^(?:photo\.php\?id=[1-9][0-9]*|[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/', $key)) {
+            throw new RuntimeException('Référence de photo invalide.');
+        }
+        if (!is_string($caption) || strlen(trim($caption)) > 500) throw new RuntimeException('Une légende de photo dépasse la longueur autorisée.');
+        $state['photo_captions'][$key] = trim($caption);
+    }
     return $state;
 }
 
@@ -49,6 +65,11 @@ function savePhotoState(PDO $pdo, int $reportId, array $state): void
         if (!isset($photos[$key])) continue;
         $delete->execute([(int) $photos[$key]['id'], $reportId]);
         unset($photos[$key]);
+    }
+    // Caption edits of already saved photos; photos deleted meanwhile are ignored.
+    $caption = $pdo->prepare('UPDATE foxreport_photos SET caption = ? WHERE id = ? AND report_id = ? AND deleted_at IS NULL');
+    foreach ($state['photo_captions'] ?? [] as $key => $text) {
+        if (isset($photos[$key]) && $photos[$key]['deleted_at'] === null) $caption->execute([$text, (int) $photos[$key]['id'], $reportId]);
     }
     $order = array_unique(array_merge($state['photo_order'], array_keys($photos)));
     $positions = [];

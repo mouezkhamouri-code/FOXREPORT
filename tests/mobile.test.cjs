@@ -6,6 +6,16 @@ test('Bundled scanner uses the imported parser rather than an unavailable Common
     assert.doesNotMatch(fs.readFileSync('assets/scanner-source.js','utf8'),/globalThis\.FoxParseScan/);
     assert.match(fs.readFileSync('assets/scanner-source.js','utf8'),/import parseScan from/);
 });
+test('PWA device cards are loaded online and offline; scanner adds directly without opening a second modal',()=>{
+    for (const file of ['index.php','assets/offline.js','sw.js']) {
+        assert.match(fs.readFileSync(file,'utf8'), /assets\/device-cards\.js/);
+        assert.match(fs.readFileSync(file,'utf8'), /assets\/device-catalogue\.js/);
+    }
+    const scanner=fs.readFileSync('assets/scanner-source.js','utf8');
+    assert.match(scanner,/const row=window\.FoxAddDevice\(\)/);
+    assert.doesNotMatch(scanner, /querySelector\('#add-device'\)\.click/);
+    assert.match(fs.readFileSync('assets/app.js','utf8'),/window\.FoxDeviceEditor\?\.isActive\(\)/);
+});
 test('Zyxel verified framing extracts serial and MAC, never an opaque model',()=>{
     const token=Buffer.from('TESTZSTEST12345678M001122334455','latin1').toString('base64');
     const result=parse(`https://app.nebula.zyxel.com/6RQi#zn=${encodeURIComponent(token)}`);

@@ -42,11 +42,11 @@ function mapsConfig(): array
     return $config;
 }
 
-function staticMapParameters(array $location, int $scale): array
+function staticMapParameters(array $location, int $scale, bool $panoramic = false): array
 {
     $point = number_format($location['latitude'], 7, '.', '') . ',' . number_format($location['longitude'], 7, '.', '');
     $parameters = [
-        'center' => $point, 'zoom' => $location['map_zoom'], 'size' => '640x360',
+        'center' => $point, 'zoom' => $location['map_zoom'], 'size' => $panoramic ? '640x246' : '640x360',
         'scale' => $scale, 'format' => 'png', 'maptype' => 'roadmap',
         'markers' => 'color:0x176b75|' . $point,
     ];
@@ -56,12 +56,12 @@ function staticMapParameters(array $location, int $scale): array
     return $parameters;
 }
 
-function googleStaticImage(array $location, array $config): string
+function googleStaticImage(array $location, array $config, bool $panoramic = false): string
 {
     if (!extension_loaded('curl')) {
         throw new RuntimeException('Activez PHP cURL pour afficher une carte.');
     }
-    $parameters = staticMapParameters($location, $config['scale']);
+    $parameters = staticMapParameters($location, $config['scale'], $panoramic);
     $parameters['key'] = $config['api_key'];
     $handle = curl_init('https://maps.googleapis.com/maps/api/staticmap?' . http_build_query($parameters));
     if ($handle === false) { throw new RuntimeException('Connexion à Google Maps indisponible.'); }
@@ -77,7 +77,7 @@ function googleStaticImage(array $location, array $config): string
         throw new RuntimeException('Google Maps ne fournit pas de carte. Vérifiez clé, restrictions, facturation et quota.');
     }
     $info = getimagesizefromstring($bytes);
-    if ($info === false || $info[0] !== 640 * $config['scale'] || $info[1] !== 360 * $config['scale']) {
+    if ($info === false || $info[0] !== 640 * $config['scale'] || $info[1] !== ($panoramic ? 246 : 360) * $config['scale']) {
         throw new RuntimeException('Dimensions de carte inattendues ; affichage refusé.');
     }
     return $bytes;

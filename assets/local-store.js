@@ -1,19 +1,29 @@
 (() => {
     'use strict';
-    const database = new Promise((resolve, reject) => {
-        const request = indexedDB.open('foxreport-local', 2);
-        request.onupgradeneeded = () => {
-            if (!request.result.objectStoreNames.contains('reports')) request.result.createObjectStore('reports', {keyPath: 'key'});
-            if (!request.result.objectStoreNames.contains('templates')) request.result.createObjectStore('templates', {keyPath: 'key'});
-        };
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => {
-            request.result.onversionchange = () => request.result.close();
-            resolve(request.result);
-        };
-    });
+    let database;
+    function getDatabase() {
+        if (database) return database;
+        database = new Promise((resolve, reject) => {
+            const request = indexedDB.open('foxreport-local', 3);
+            request.onupgradeneeded = () => {
+                if (!request.result.objectStoreNames.contains('reports')) request.result.createObjectStore('reports', {keyPath: 'key'});
+                if (!request.result.objectStoreNames.contains('templates')) request.result.createObjectStore('templates', {keyPath: 'key'});
+                if (!request.result.objectStoreNames.contains('syncLogs')) {
+                    const store = request.result.createObjectStore('syncLogs', {keyPath: 'id', autoIncrement: true});
+                    store.createIndex('user_timestamp', ['user', 'timestamp']);
+                }
+            };
+            request.onerror = () => reject(request.error);
+            request.onblocked = () => reject(new Error('La base locale est verrouillée par un autre onglet. Fermez les autres fenêtres FoxReport puis réessayez.'));
+            request.onsuccess = () => {
+                request.result.onversionchange = () => request.result.close();
+                resolve(request.result);
+            };
+        });
+        return database;
+    }
     async function transaction(mode, operation, name = 'reports') {
-        const db = await database;
+        const db = await getDatabase();
         return new Promise((resolve, reject) => {
             const tx = db.transaction(name, mode);
             const request = operation(tx.objectStore(name));
@@ -35,8 +45,12 @@
         getTemplate: key => transaction('readonly', store => store.get(key), 'templates'),
         putTemplate: template => transaction('readwrite', store => store.put(template), 'templates'),
         removeTemplate: key => transaction('readwrite', store => store.delete(key), 'templates'),
+        addSyncLog: entry => transaction('readwrite', store => store.add(entry), 'syncLogs'),
+        syncLogs: user => transaction('readonly', store => store.getAll(), 'syncLogs')
+            .then(entries => entries.filter(entry => entry.user === user).sort((a, b) => b.timestamp - a.timestamp).slice(0, 15)),
+        updateTemplate: (key, operation) => window.FoxLocal.update(key, operation, 'templates'),
         async resolveConflict(key, copyKey, verify) {
-            const db=await database;
+            const db=await getDatabase();
             return new Promise((resolve,reject)=>{
                 const tx=db.transaction('reports','readwrite'),store=tx.objectStore('reports');
                 const sourceRequest=store.get(key),copyRequest=store.get(copyKey);
@@ -54,11 +68,11 @@
                 tx.onabort=()=>reject(tx.error || new Error('Archivage local interrompu : conflit original conservé.'));
             });
         },
-        async update(key, operation) {
-            const db = await database;
+        async update(key, operation, name = 'reports') {
+            const db = await getDatabase();
             return new Promise((resolve, reject) => {
-                const tx = db.transaction('reports', 'readwrite');
-                const store = tx.objectStore('reports');
+                const tx = db.transaction(name, 'readwrite');
+                const store = tx.objectStore(name);
                 const request = store.get(key);
                 let result;
                 request.onsuccess = () => {
@@ -67,7 +81,7 @@
                         if (result) store.put(result);
                     } catch (error) { tx.abort(); reject(error); }
                 };
-                tx.oncomplete = () => { resolve(result); document.dispatchEvent(new Event('fox-local-change')); };
+                tx.oncomplete = () => { resolve(result); if (name === 'reports') document.dispatchEvent(new Event('fox-local-change')); };
                 tx.onerror = () => reject(tx.error);
                 tx.onabort = () => reject(tx.error || new Error('Mise à jour locale interrompue.'));
             });

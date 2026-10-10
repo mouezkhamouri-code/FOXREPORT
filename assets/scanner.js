@@ -33557,6 +33557,7 @@
     categoryLabel.textContent = "Cat\xE9gorie (\xE0 confirmer)";
     categoryLabel.append(categories);
     $("#scan-fields").append(categoryLabel);
+    document.querySelector("#report-form").addEventListener("fox-inventory-restored", () => window.FoxDeviceCatalogue?.populate(categories));
     for (const [key, label] of Object.entries({ brand: "Marque", model: "Mod\xE8le", serial_number: "Num\xE9ro de s\xE9rie", mac_address: "MAC", decoded_password: "Mot de passe d\xE9cod\xE9 (hors PDF)" })) {
       const element = document.createElement("label");
       element.className = "field";
@@ -33687,8 +33688,7 @@
         $("#scan-message").textContent = "Appareil d\xE9j\xE0 pr\xE9sent : s\xE9rie ou MAC identique.";
         return;
       }
-      document.querySelector("#add-device").click();
-      const row = document.querySelector("#device-rows").lastElementChild;
+      const row = window.FoxAddDevice();
       row.querySelector('[name$="[category]"]').value = categories.value;
       Object.entries(data).forEach(([key, value]) => {
         const field = row.querySelector(`[name$="[${key}]"]`);

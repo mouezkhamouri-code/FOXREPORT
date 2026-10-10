@@ -12,9 +12,9 @@
             const template=await FoxLocal.getTemplate(user);
             const page=new DOMParser().parseFromString(template?.html || report.html,'text/html');
             document.body.replaceWith(document.importNode(page.body,true));
-            document.dispatchEvent(new Event('fox-page-restored'));
             document.body.dataset.user=user;
             document.body.dataset.localSnapshot='true';
+            document.dispatchEvent(new Event('fox-page-restored'));
             if (shellVersion) document.body.dataset.appVersion=shellVersion;
             document.querySelector('[name="report_id"]').value=report.id;
             document.querySelector('[name="revision"]').value=String(report.revision);
@@ -29,11 +29,11 @@
             if(report.status==='finalized') {
                 document.querySelector('#report-form fieldset').disabled=true;
                 const actions=document.querySelector('.form-actions');
-                actions.replaceChildren();
+                actions.querySelectorAll('button').forEach(button=>button.remove());
                 const link=document.createElement('a');link.className='button button-secondary';
                 link.href=`index.php?id=${report.serverId || report.id}`;
                 link.textContent='Rapport clôturé · rouvrir en ligne';
-                actions.append(link);
+                actions.querySelector('div').append(link);
             }
             const preview=document.querySelector('.report-preview');
             if(report.serverId) preview.href=`rapport.php?id=${report.serverId}`;
@@ -42,7 +42,7 @@
                 preview.setAttribute('aria-disabled','true');
                 preview.textContent='Prévisualisation après synchronisation';
             }
-            for(const file of ['assets/app.js','assets/photos.js','assets/scanner.js','assets/location.js','assets/pwa.js']) {
+            for(const file of ['assets/app.js','assets/device-catalogue.js','assets/device-cards.js','assets/photos.js','assets/scanner.js','assets/location.js','assets/pwa.js']) {
                 await new Promise((resolve,reject)=>{
                     const script=document.createElement('script');
                     const version=document.body.dataset.appVersion;

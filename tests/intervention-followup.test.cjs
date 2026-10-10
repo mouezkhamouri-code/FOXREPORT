@@ -26,7 +26,7 @@ test('Follow-up modal adds, edits, cancels, removes and restores compact rows of
     for(const selector of ['#followup-cancel','#followup-delete','#followup-dialog-title','#followup-editor-error']) dialogNodes[selector]={};
     const dialog={setAttribute:()=>{},querySelector:selector=>dialogNodes[selector],showModal(){this.open=true;},close(){this.open=false;}};
     const nodes={
-        '#report-form':{elements:{},addEventListener:(name,handler)=>{handlers[name]=handler;},dispatchEvent:()=>{edits++;},querySelector:()=>({disabled:false})},
+        '#report-form':{elements:{},addEventListener:(name,handler)=>{handlers[name]=handler;},dispatchEvent:()=>{edits++;},querySelector:selector=>selector.includes('training')?null:{disabled:false}},
         '#active-section':{value:'1'},'#previous-step':new Element('button'),'#next-step':new Element('button'),
         '#intervention-followup':field,'#followup-rows':rows,'#add-followup':add,'#followup-message':message,
         '[name="order_date"]':order,'#organisation-order-date':copy,

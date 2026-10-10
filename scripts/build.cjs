@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const esbuild = require('esbuild');
 const crypto = require('node:crypto');
+const RELEASE_VERSION = '1.01';
 
 async function build() {
     await esbuild.build({
@@ -52,10 +53,11 @@ async function build() {
     const version='foxreport-shell-'+hash.digest('hex').slice(0,16);
     const worker=fs.readFileSync('sw.js','utf8').replace(/const VERSION = '[^']+';/,`const VERSION = '${version}';`);
     fs.writeFileSync('sw.js',worker);
-    fs.writeFileSync(path.join('app','build-version.php'),`<?php\ndeclare(strict_types=1);\nconst FOXREPORT_VERSION = '${version}';\n`);
+    fs.writeFileSync(path.join('app','build-version.php'),`<?php\ndeclare(strict_types=1);\nconst FOXREPORT_VERSION = '${version}';\nconst FOXREPORT_RELEASE_VERSION = '${RELEASE_VERSION}';\n`);
     fs.writeFileSync('version.json',JSON.stringify({version})+'\n');
     const offline=fs.readFileSync('offline.html','utf8')
         .replace(/data-app-version="[^"]*"/,`data-app-version="${version}"`)
+        .replace(/data-release-version="[^"]*"/,`data-release-version="${RELEASE_VERSION}"`)
         .replace(/((?:src|href)="assets\/[^"?]+)(?:\?v=[a-z0-9-]+)?"/g,`$1?v=${version}"`);
     fs.writeFileSync('offline.html',offline);
     console.log(`FoxReport version: ${version}`);

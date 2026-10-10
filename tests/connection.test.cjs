@@ -10,6 +10,7 @@ function fixture() {
         localStorage:{getItem:()=>null},
         document:{body,querySelector:selector=>selector==='.topbar'?header:status,addEventListener:(name,fn)=>{events[name]=fn;}},
         FoxLocal:{all:async()=>{if(failure)throw failure;return records;}}};
+    context.window.FoxAppMode={usesLocalReports:()=>true};
     context.window.FoxLocal=context.FoxLocal;
     vm.runInNewContext(fs.readFileSync('assets/connection.js','utf8'),context);
     return {body,header,status,events,context,setRecords:value=>{records=value;},fail:error=>{failure=error;}};

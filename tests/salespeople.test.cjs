@@ -4,16 +4,17 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const {execFileSync} = require('node:child_process');
 
-test('Landscape crop produces a 1600 by 900 JPEG with adjustable position and zoom', async () => {
+for (const [requested, section, expected, format] of [['landscape','1',[1600,615],'landscape'],['landscape','5',[1600,615],'landscape'],['portrait','5',[1125,1500],'portrait'],['square','6',[1200,1200],'square'],['landscape','6',[1200,1200],'square'],['portrait','7',[1200,1200],'square']]) {
+test(`${requested} crop request in section ${section} produces ${expected.join(' by ')} JPEG with adjustable position and zoom`, async () => {
     const controls = {};
-    for (const id of ['crop-format','crop-zoom','crop-x','crop-y','crop-caption','crop-error','crop-rotate','crop-cancel','crop-confirm','crop-preview']) controls[`#${id}`]={value:id==='crop-format'?'landscape':''};
+    for (const id of ['crop-format','crop-zoom','crop-x','crop-y','crop-caption','crop-error','crop-rotate','crop-cancel','crop-confirm','crop-preview']) controls[`#${id}`]={value:id==='crop-format'?requested:''};
     const drawing = {translate:()=>{},rotate:()=>{},drawImage:()=>{},fillRect:()=>{}};
     controls['#crop-preview'].getContext=()=>drawing;
     let resultSize;
     let opened;
     const dialog={querySelector:selector=>controls[selector],close:()=>{},showModal:()=>{opened();}};
     const handlers={};
-    const input={dataset:{photoInput:'1'},files:[{type:'image/jpeg',size:1000}],addEventListener:(name,handler)=>{handlers[name]=handler;}};
+    const input={dataset:{photoInput:section},files:[{type:'image/jpeg',size:1000}],addEventListener:(name,handler)=>{handlers[name]=handler;}};
     const context={
         document:{
             createElement:type=>type==='dialog'?dialog:{
@@ -33,15 +34,16 @@ test('Landscape crop produces a 1600 by 900 JPEG with adjustable position and zo
     vm.runInNewContext(fs.readFileSync('assets/photos.js','utf8'),context);
     handlers.change();
     await ready;
-    assert.equal(controls['#crop-format'].value,'landscape');
-    assert.equal(controls['#crop-format'].disabled,true);
+    assert.equal(controls['#crop-format'].value,format);
+    assert.equal(controls['#crop-format'].disabled,['1','6','7'].includes(section));
     controls['#crop-x'].value='.8';controls['#crop-x'].oninput();
     controls['#crop-zoom'].value='1.2';controls['#crop-zoom'].oninput();
     await controls['#crop-confirm'].onclick();
     await context.window.FoxPhotos.whenReady();
-    assert.deepEqual(resultSize,[1600,900]);
-    assert.equal(context.window.FoxPhotos.get()[0].format,'landscape');
+    assert.deepEqual(resultSize,expected);
+    assert.equal(context.window.FoxPhotos.get()[0].format,format);
 });
+}
 
 test('SITE rejects portrait and square images in the browser before opening the crop dialog', async () => {
     const handlers = {};

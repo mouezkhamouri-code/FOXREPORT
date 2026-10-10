@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS foxreport_reports (
     sales_rep VARCHAR(190) NOT NULL DEFAULT '',
     sales_rep_id BIGINT UNSIGNED NULL,
     customer_id VARCHAR(100) NOT NULL DEFAULT '',
+    establishment_id VARCHAR(100) NOT NULL DEFAULT '',
     order_reference VARCHAR(100) NOT NULL DEFAULT '',
     order_date DATE NULL,
     gallery_url VARCHAR(2048) NOT NULL DEFAULT '',
@@ -35,13 +36,15 @@ CREATE TABLE IF NOT EXISTS foxreport_reports (
     hardware_installation VARCHAR(30) NOT NULL DEFAULT '',
     skills_transfer VARCHAR(30) NOT NULL DEFAULT '',
     all_material_installed TINYINT(1) NULL,
+    equipment_comment TEXT NOT NULL,
     context_start_time TIME NULL,
     context_end_time TIME NULL,
     context_notes TEXT NOT NULL,
     infrastructure_notes TEXT NOT NULL,
-    nuc_installed TINYINT(1) NULL,
     internet_present TINYINT(1) NULL,
-    router_switch_present TINYINT(1) NULL,
+    network_type VARCHAR(40) NOT NULL DEFAULT '',
+    nebula_controller_configured TINYINT(1) NULL,
+    switch_present TINYINT(1) NULL,
     wifi_comment TEXT NOT NULL,
     printer_comment TEXT NOT NULL,
     payment_tpe_status VARCHAR(30) NOT NULL DEFAULT '',
@@ -118,3 +121,35 @@ CREATE TABLE IF NOT EXISTS foxreport_salespeople (
     email VARCHAR(190) NOT NULL,
     PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS foxreport_device_types (
+    category VARCHAR(40) NOT NULL,
+    label VARCHAR(120) NOT NULL,
+    PRIMARY KEY (category)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS foxreport_device_models (
+    model_key CHAR(64) NOT NULL,
+    category VARCHAR(40) NOT NULL,
+    name VARCHAR(160) NOT NULL,
+    PRIMARY KEY (model_key),
+    KEY idx_foxreport_device_models_category (category),
+    CONSTRAINT fk_foxreport_device_models_type FOREIGN KEY (category)
+        REFERENCES foxreport_device_types(category)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS foxreport_training_items (
+    item_key VARCHAR(60) NOT NULL,
+    theme_key VARCHAR(40) NOT NULL,
+    label VARCHAR(300) NOT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    deleted_at DATETIME NULL DEFAULT NULL,
+    PRIMARY KEY (item_key),
+    KEY idx_foxreport_training_items_theme (theme_key, sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+INSERT IGNORE INTO foxreport_device_types (category, label) VALUES
+('ipad_pro', 'iPad Pro'), ('ipad', 'iPad'), ('ipad_mini', 'iPad Mini'),
+('iphone', 'iPhone'), ('router', 'Routeur'), ('switch_poe', 'Switch POE'),
+('wifi_ap', 'Borne Wi-Fi'), ('printer_wired', 'Imprimante filaire'),
+('printer_wifi', 'Imprimante Wi-Fi'), ('printer_portable', 'Imprimante portative'),
+('payment_terminal', 'TPE'), ('nyc_mobile_tap', 'NYC Mobile TAP'), ('cash_drawer', 'Tiroir-caisse');

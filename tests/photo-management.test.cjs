@@ -12,10 +12,10 @@ test('Saved and pending photos can be reordered and removed offline with confirm
     }
     const grid=new Element('div');
     const block={querySelector:()=>grid,closest:()=>({dataset:{sectionPanel:'12'}})};
-    const order={value:'[]'},deleted={value:'[]'},fieldset={disabled:false};
+    const order={value:'[]'},deleted={value:'[]'},captionsField={value:'{}'},fieldset={disabled:false};
     let changes=0,confirmed=true;
     const form={dispatchEvent:()=>{changes++;}};
-    const nodes={'#photo-order':order,'#photo-deleted':deleted,'#report-form':form,'#report-form fieldset':fieldset,'[data-photo-section="1"]':block};
+    const nodes={'#photo-order':order,'#photo-deleted':deleted,'#photo-captions':captionsField,'#report-form':form,'#report-form fieldset':fieldset,'[data-photo-section="1"]':block};
     const context={
         document:{
             createElement:tag=>new Element(tag),body:{append:()=>{}},
@@ -47,6 +47,10 @@ test('Saved and pending photos can be reordered and removed offline with confirm
     assert.equal(context.window.FoxPhotos.get().length,0);
     assert.deepEqual(keys(),['saved-b']);
     assert.ok(changes>=3);
+    assert.ok(button('saved-b','Modifier'),'Saved photos can be reopened for editing');
+    captionsField.value='{"saved-b":"Légende modifiée"}';
+    context.window.FoxPhotos.restoreSaved([photo('saved-b')]);
+    assert.equal(grid.children[0].children[1].textContent,'Légende modifiée','An edited caption of a saved photo survives a draft restore');
     fieldset.disabled=true;
     context.window.FoxPhotos.restoreSaved([photo('saved-b')]);
     assert.equal(grid.children[0].children.length,2);

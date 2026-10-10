@@ -25,6 +25,7 @@ if (button) {
     const empty=document.createElement('option');empty.value='';empty.textContent='Choisir une catégorie';categories.prepend(empty);categories.value='';
     const categoryLabel=document.createElement('label');categoryLabel.className='field';categoryLabel.textContent='Catégorie (à confirmer)';categoryLabel.append(categories);
     $('#scan-fields').append(categoryLabel);
+    document.querySelector('#report-form').addEventListener('fox-inventory-restored',()=>window.FoxDeviceCatalogue?.populate(categories));
     for(const [key,label] of Object.entries({brand:'Marque',model:'Modèle',serial_number:'Numéro de série',mac_address:'MAC',decoded_password:'Mot de passe décodé (hors PDF)'})) {
         const element=document.createElement('label');element.className='field';element.textContent=label;
         const input=document.createElement('input');input.id=`scan-${key}`;input.type=key==='decoded_password'?'password':'text';input.maxLength=key==='decoded_password'?500:160;
@@ -109,8 +110,7 @@ if (button) {
             return (serial&&serial===otherSerial)||(mac&&mac===otherMac);
         });
         if(duplicate){$('#scan-message').textContent='Appareil déjà présent : série ou MAC identique.';return;}
-        document.querySelector('#add-device').click();
-        const row=document.querySelector('#device-rows').lastElementChild;
+        const row=window.FoxAddDevice();
         row.querySelector('[name$="[category]"]').value=categories.value;
         Object.entries(data).forEach(([key,value])=>{const field=row.querySelector(`[name$="[${key}]"]`);if(field)field.value=value;});
         row.dispatchEvent(new Event('input',{bubbles:true}));

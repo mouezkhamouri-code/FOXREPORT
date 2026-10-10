@@ -1,19 +1,48 @@
 (() => {
     'use strict';
     const inFlight = new Map();
+    function writeLog(entry) {
+        if (typeof FoxLocal.addSyncLog !== 'function') return;
+        FoxLocal.addSyncLog(entry).catch(error=>console.error('Journal de synchronisation indisponible.',error));
+    }
     async function jsonRequest(url, options = {}) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 30000);
         try {
             const response = await fetch(url, {...options, cache:'no-store', signal:controller.signal});
-            const result = await response.json();
+            let result = {};
+            let raw = '';
+            if (typeof response.text === 'function') {
+                raw = await response.text();
+                if (!raw.trim()) {
+                    const error = new Error(response.ok
+                        ? `Réponse serveur vide (${response.status}) : le serveur n’a retourné aucune donnée JSON.`
+                        : `Requête refusée (${response.status}) : réponse vide du serveur.`);
+                    error.status = response.status;
+                    throw error;
+                }
+                try { result = JSON.parse(raw); }
+                catch (parseError) {
+                    const error = new Error(`Réponse serveur invalide (${response.status}) : ${describeResponse(raw)}`);
+                    error.status = response.status;
+                    error.cause = parseError;
+                    throw error;
+                }
+            } else {
+                result = await response.json();
+            }
             if (!response.ok) {
-                const error = new Error(result.error || `Requête refusée (${response.status}).`);
+                const error = new Error(result.error || `Requête refusée (${response.status})${raw.trim() ? ` : ${describeResponse(raw)}` : ' : réponse vide du serveur.'}`);
                 error.status = response.status;
                 throw error;
             }
             return result;
         } finally { clearTimeout(timer); }
+    }
+    function describeResponse(raw) {
+        const compact=raw.replace(/\s+/g,' ').trim();
+        if (!compact) return 'réponse vide du serveur';
+        return compact.length>240 ? `${compact.slice(0,240)}…` : compact;
     }
     async function identity(user) {
         const session = await jsonRequest('index.php?api=session');
@@ -94,6 +123,10 @@
             return updated;
         });
         document.dispatchEvent(new CustomEvent('fox-synced',{detail:{record}}));
+        writeLog({
+            user:record.user, key, recordId:record.serverId || record.id, title:record.title || 'Rapport sans titre',
+            timestamp:Date.now(), status:'success', message:`Synchronisation réussie · révision ${record.revision}.`, retryable:false,
+        });
         return record;
     }
     async function syncRecord(key, status = 'draft') {
@@ -103,7 +136,14 @@
             : send(key,status);
         inFlight.set(key,operation);
         try { return await operation; }
-        finally { inFlight.delete(key); }
+        catch (error) {
+            const record = await FoxLocal.get(key);
+            writeLog({
+                user:record?.user, key, recordId:record?.serverId || record?.id, title:record?.title || 'Rapport sans titre',
+                timestamp:Date.now(), status:'error', message:error.message, retryable:!([400,403,409,422].includes(error.status)),
+            });
+            throw error;
+        } finally { inFlight.delete(key); }
     }
     async function syncAll(user, excludeKey) {
         const errors = [];
@@ -194,11 +234,12 @@
         if (!source?.conflict || source.conflictResolved) throw new Error('Ce conflit n’est plus actif. Rechargez les brouillons locaux.');
         const signature=snapshotSignature(source);
         const originals=[...(source.photos || []),...(source.savedPhotos || [])];
-        const photos=originals.map(photo=>({...photo,id:crypto.randomUUID()}));
+        const captions=JSON.parse(source.entries.find(([name])=>name==='photo_captions')?.[1] || '{}');
+        const photos=originals.map(photo=>({...photo,id:crypto.randomUUID(),caption:Object.hasOwn(captions,photo.id)?captions[photo.id]:photo.caption}));
         const photoIds=new Map(originals.map((photo,index)=>[photo.id,photos[index].id]));
         const copy=await createDraft(source.user,record=>({...record,
             entries:source.entries.map(([name,value])=>[name,name==='report_id'?record.id:name==='revision'?'1':
-                name==='photo_deleted'?'[]':name==='photo_order'?JSON.stringify(JSON.parse(value).filter(id=>photoIds.has(id)).map(id=>photoIds.get(id))):value]),
+                name==='photo_deleted'?'[]':name==='photo_captions'?'{}':name==='photo_order'?JSON.stringify(JSON.parse(value).filter(id=>photoIds.has(id)).map(id=>photoIds.get(id))):value]),
             photos,savedPhotos:[],title:source.title,section:source.section,resolutionPending:true,conflict:true,
             error:'Copie en attente de vérification. L’original est conservé ; résolvez cette copie si la vérification a été interrompue.'}));
         const entries=copy.entries;
@@ -209,9 +250,9 @@
                 throw new Error('Copie locale non confirmée : le conflit original reste actif.');
             }
             for (let index=0;index<originals.length;index++) {
-                const original=originals[index],saved=stored.photos[index];
+                const original=originals[index],expected=photos[index],saved=stored.photos[index];
                 if (!(original.blob instanceof Blob) || !(saved.blob instanceof Blob)
-                    || JSON.stringify({...saved,id:original.id,blob:null})!==JSON.stringify({...original,blob:null})
+                    || JSON.stringify({...saved,blob:null})!==JSON.stringify({...expected,blob:null})
                     || saved.blob.type!==original.blob.type) {
                     throw new Error('Photo locale non confirmée : le conflit original reste actif.');
                 }
@@ -253,5 +294,6 @@
             row.append(text,link);container.append(row);
         }
     }
-    window.FoxSync = {syncRecord,syncAll,cacheTemplate,createDraft,pendingState,copyConflict,resolveServer,renderConflicts,discardLocal,serverConflictPage};
+    window.FoxSync = {syncRecord,syncAll,cacheTemplate,createDraft,pendingState,copyConflict,resolveServer,renderConflicts,discardLocal,serverConflictPage,
+        getSyncLogs:user=>FoxLocal.syncLogs(user)};
 })();

@@ -37,6 +37,29 @@
     orderDate?.addEventListener('change', updateOrderDate);
     updateOrderDate();
 
+    const startTime = document.querySelector('[name="context_start_time"]');
+    const endTime = document.querySelector('[name="context_end_time"]');
+    const durationField = document.querySelector('#evaluation-duration');
+    function minutesOf(value) {
+        const match = /^([01]\d|2[0-3]):([0-5]\d)(?::00)?$/.exec(value || '');
+        return match ? Number(match[1]) * 60 + Number(match[2]) : null;
+    }
+    function updateDuration() {
+        if (!durationField) return;
+        const start = minutesOf(startTime?.value);
+        const end = minutesOf(endTime?.value);
+        if (start === null || end === null) { durationField.value = ''; return; }
+        // Mirrors interventionMinutes(): an earlier end time means the work ran past midnight.
+        const minutes = (end - start + 1440) % 1440;
+        const rest = minutes % 60;
+        durationField.value = minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} h${rest ? ` ${String(rest).padStart(2, '0')}` : ''}`;
+    }
+    for (const input of [startTime, endTime]) {
+        input?.addEventListener('input', updateDuration);
+        input?.addEventListener('change', updateDuration);
+    }
+    updateDuration();
+
     const followupField = document.querySelector('#intervention-followup');
     const followupRows = document.querySelector('#followup-rows');
     const followupMessage = document.querySelector('#followup-message');
@@ -286,6 +309,9 @@
     function updateDevices() {
         updateEmptyFields();
         if (!deviceRows) return;
+        rowTemplate?.content.querySelectorAll('select[data-device-field="category"] option').forEach(option => {
+            if (option.value) deviceLabels.set(option.value, option.textContent);
+        });
         const counts = new Map();
         deviceRows.querySelectorAll('.device-row select[name$="[category]"]').forEach((select) => {
             if (select.value) counts.set(select.value, (counts.get(select.value) || 0) + 1);
@@ -344,7 +370,7 @@
                 field.name = `devices[${index}][${field.dataset.deviceField}]`;
             });
         };
-        addDeviceButton.addEventListener('click', () => {
+        window.FoxAddDevice = () => {
             const row = rowTemplate.content.firstElementChild.cloneNode(true);
             const indexes = Array.from(deviceRows.querySelectorAll('.device-row')).map((existingRow) => {
                 const namedField = existingRow.querySelector('[name^="devices["]');
@@ -357,6 +383,11 @@
             invalidateSections([3,5,6,7,8,9]);
             row.querySelector('select')?.focus();
             form.dispatchEvent(new Event('fox-change'));
+            return row;
+        };
+        addDeviceButton.addEventListener('click', () => {
+            if (window.FoxDeviceEditor?.isActive()) window.FoxDeviceEditor.openNew();
+            else window.FoxAddDevice();
         });
         deviceRows.addEventListener('click', (event) => {
             const removeButton = event.target.closest('.remove-device');
@@ -376,4 +407,228 @@
         const panel = event.target.closest('[data-section-panel]');
         if (panel) showSection(panel.dataset.sectionPanel);
     }, true);
-})();
+
+    const checklist = form.querySelector('[data-training-checklist]');
+    const digitFields = [...document.querySelectorAll('input[data-digits]')];
+    const checkDigits = (input) => {
+        const value = input.value.replace(/\s+/g, '');
+        const expected = Number(input.dataset.digits);
+        const over = value !== '' && (!/^\d+$/.test(value) || value.length > expected);
+        const short = value !== '' && !over && value.length < expected;
+        input.classList.toggle('digits-over', over);
+        input.classList.toggle('digits-short', short);
+        input.classList.toggle('digits-ok', value.length === expected && !over);
+    };
+    digitFields.forEach((input) => {
+        input.addEventListener('input', () => checkDigits(input));
+        checkDigits(input);
+    });
+    if (digitFields.length) form.addEventListener('fox-sections-restored', () => digitFields.forEach(checkDigits));
+    if (checklist) {
+        const themesHost = checklist.querySelector('[data-training-themes]');
+        const configureButton = form.querySelector('[data-training-configure]');
+        const configStatus = form.querySelector('[data-training-config-status]');
+        const storageKey = 'foxreport-training-template';
+        let template = null;
+        try { template = JSON.parse(checklist.dataset.trainingTemplate || 'null'); } catch { template = null; }
+        const element = (tag, className, text) => {
+            const node = document.createElement(tag);
+            if (className) node.className = className;
+            if (text !== undefined) node.textContent = text;
+            return node;
+        };
+        const refreshChecklist = () => {
+            let treated = 0, total = 0;
+            checklist.querySelectorAll('[data-training-theme]').forEach((theme) => {
+                const items = [...theme.querySelectorAll('[data-training-item]')];
+                const done = items.filter((item) => item.querySelector('input:checked')).length;
+                items.forEach((item) => item.classList.toggle('is-na', item.querySelector('.training-na input').checked));
+                theme.querySelector('[data-theme-count]').textContent = `${done} / ${items.length}`;
+                theme.classList.toggle('is-complete', items.length > 0 && done === items.length);
+                treated += done; total += items.length;
+            });
+            checklist.querySelector('[data-training-total]').textContent = `${treated} / ${total}`;
+        };
+        const checkbox = (name, key, checked, label) => {
+            const wrapper = element('label', name === 'training_done[]' ? 'training-done' : 'training-na');
+            const input = element('input');
+            input.type = 'checkbox'; input.name = name; input.value = key; input.checked = checked;
+            wrapper.append(input, element('span', '', label));
+            return wrapper;
+        };
+        // Rebuilds the themes from the shared template while keeping current ticks and opened themes.
+        const render = (data) => {
+            if (!data || !Array.isArray(data.themes) || !themesHost) return;
+            const status = new Map();
+            checklist.querySelectorAll('.training-done input:checked').forEach((input) => status.set(input.value, 'done'));
+            checklist.querySelectorAll('.training-na input:checked').forEach((input) => status.set(input.value, 'na'));
+            const opened = new Set([...checklist.querySelectorAll('[data-training-theme][open]')].map((theme) => theme.dataset.trainingTheme));
+            themesHost.replaceChildren(...data.themes.map((theme, index) => {
+                const details = element('details', 'training-theme');
+                details.dataset.trainingTheme = theme.key;
+                details.open = opened.has(theme.key);
+                const summary = element('summary');
+                const count = element('span', 'training-theme-count', '');
+                count.dataset.themeCount = '';
+                summary.append(element('span', 'training-theme-title', `${index + 1}. ${theme.title}`), count);
+                const body = element('div', 'training-theme-body');
+                theme.items.forEach((item) => {
+                    const row = element('div', 'training-item');
+                    row.dataset.trainingItem = '';
+                    row.append(checkbox('training_done[]', item.key, status.get(item.key) === 'done', item.label),
+                        checkbox('training_na[]', item.key, status.get(item.key) === 'na', 'Non concerné'));
+                    body.append(row);
+                });
+                const actions = element('div', 'training-theme-actions');
+                const done = element('button', 'button training-theme-button', 'Tout ce thème : concerné');
+                done.type = 'button'; done.dataset.themeDone = '';
+                const na = element('button', 'button training-theme-button training-theme-na', 'Tout ce thème : non concerné');
+                na.type = 'button'; na.dataset.themeNa = '';
+                actions.append(done, na);
+                body.append(actions);
+                details.append(summary, body);
+                return details;
+            }));
+            template = data;
+            refreshChecklist();
+        };
+        const remember = (data) => {
+            try { localStorage.setItem(storageKey, JSON.stringify(data)); } catch { /* storage full: the embedded template stays usable */ }
+        };
+        const request = async (options = {}) => {
+            const response = await fetch('index.php?api=training-checklist', {...options, cache: 'no-store'});
+            let result = {};
+            try { result = await response.json(); } catch { result = {}; }
+            if (!response.ok || !Array.isArray(result.themes)) throw new Error(result.error || `Configuration refusée (${response.status}).`);
+            return result;
+        };
+        const apply = (data) => {
+            if (JSON.stringify(data) !== JSON.stringify(template)) render(data);
+            remember(data);
+        };
+        try {
+            const cached = JSON.parse(localStorage.getItem(storageKey) || 'null');
+            if (cached && Array.isArray(cached.themes) && JSON.stringify(cached) !== JSON.stringify(template)) render(cached);
+        } catch { /* ignore an unreadable cache */ }
+        if (navigator.onLine) request().then(apply).catch(() => {});
+
+        checklist.addEventListener('change', (event) => {
+            const item = event.target.closest('[data-training-item]');
+            if (item && event.target.checked) {
+                item.querySelectorAll('input').forEach((input) => { if (input !== event.target) input.checked = false; });
+            }
+            refreshChecklist();
+        });
+        checklist.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-theme-na], [data-theme-done]');
+            if (!button) return;
+            const allDone = button.hasAttribute('data-theme-done');
+            button.closest('[data-training-theme]').querySelectorAll('[data-training-item]').forEach((item) => {
+                item.querySelector('.training-done input').checked = allDone;
+                item.querySelector('.training-na input').checked = !allDone;
+            });
+            refreshChecklist();
+            form.dispatchEvent(new Event('change', {bubbles: true}));
+        });
+        form.addEventListener('fox-sections-restored', refreshChecklist);
+        refreshChecklist();
+
+        // No training delivered: the checklist (and its configuration) is not relevant.
+        const deliveredSelect = form.elements.training_delivered;
+        const toggleChecklist = () => {
+            const hide = deliveredSelect?.value === '0';
+            checklist.hidden = hide;
+            configureButton?.closest('.training-configure-bar')?.toggleAttribute('hidden', hide);
+        };
+        deliveredSelect?.addEventListener('change', toggleChecklist);
+        form.addEventListener('fox-sections-restored', toggleChecklist);
+        toggleChecklist();
+
+        if (configureButton) {
+            const dialog = document.createElement('dialog');
+            dialog.className = 'media-dialog training-config-dialog';
+            dialog.setAttribute('aria-labelledby', 'training-config-title');
+            dialog.innerHTML = `<form class="training-config" method="dialog">
+                <h2 id="training-config-title">Configurer la checklist</h2>
+                <p class="training-config-note">Les changements s’appliquent à tous les rapports, y compris ceux déjà enregistrés.</p>
+                <label class="field"><span class="field-title">Thème</span><select data-config-theme></select></label>
+                <label class="field"><span class="field-title">Ligne</span><select data-config-item></select></label>
+                <label class="field"><span class="field-title">Texte de la ligne</span><textarea data-config-label rows="4" maxlength="300"></textarea></label>
+                <p class="training-config-message" data-config-message role="alert"></p>
+                <div class="training-config-actions">
+                    <button type="button" class="button button-configure" data-config-save>Ajouter la ligne</button>
+                    <button type="button" class="button button-danger-soft" data-config-delete hidden>Supprimer la ligne</button>
+                    <button type="button" class="button button-secondary" data-config-close>Fermer</button>
+                </div>
+            </form>`;
+            document.body.append(dialog);
+            const themeSelect = dialog.querySelector('[data-config-theme]');
+            const itemSelect = dialog.querySelector('[data-config-item]');
+            const labelInput = dialog.querySelector('[data-config-label]');
+            const saveButton = dialog.querySelector('[data-config-save]');
+            const deleteButton = dialog.querySelector('[data-config-delete]');
+            const messageBox = dialog.querySelector('[data-config-message]');
+            const say = (text) => { messageBox.textContent = text; };
+            const currentTheme = () => (template?.themes || []).find((theme) => theme.key === themeSelect.value);
+            const fillItems = (selected = '') => {
+                const theme = currentTheme();
+                const options = [new Option('➕ Nouvelle ligne', '')];
+                (theme?.items || []).forEach((item, index) => options.push(new Option(`${index + 1}. ${item.label}`, item.key)));
+                itemSelect.replaceChildren(...options);
+                itemSelect.value = (theme?.items || []).some((item) => item.key === selected) ? selected : '';
+                fillLabel();
+            };
+            const fillLabel = () => {
+                const item = currentTheme()?.items.find((entry) => entry.key === itemSelect.value);
+                labelInput.value = item ? item.label : '';
+                saveButton.textContent = item ? 'Enregistrer la modification' : 'Ajouter la ligne';
+                deleteButton.hidden = !item;
+            };
+            const fillThemes = (selected) => {
+                themeSelect.replaceChildren(...(template?.themes || []).map((theme, index) => new Option(`${index + 1}. ${theme.title}`, theme.key)));
+                if (selected) themeSelect.value = selected;
+            };
+            const send = async (action) => {
+                if (!navigator.onLine) { say('Connexion Internet nécessaire pour modifier la configuration partagée.'); return; }
+                const label = labelInput.value.trim();
+                if (action !== 'delete' && label === '') { say('Saisissez le texte de la ligne.'); labelInput.focus(); return; }
+                if (action === 'delete' && !confirm('Supprimer cette ligne de la checklist de tous les rapports ?')) return;
+                saveButton.disabled = deleteButton.disabled = true;
+                say('Enregistrement…');
+                try {
+                    const sessionResponse = await fetch('index.php?api=session', {cache: 'no-store'});
+                    const session = await sessionResponse.json();
+                    if (!sessionResponse.ok || !session.csrf) throw new Error('Session expirée. Reconnectez-vous.');
+                    const body = new FormData();
+                    body.set('csrf_token', session.csrf);
+                    body.set('action', action);
+                    body.set('theme', themeSelect.value);
+                    body.set('item', itemSelect.value);
+                    body.set('label', label);
+                    const theme = themeSelect.value;
+                    const keep = action === 'edit' ? itemSelect.value : '';
+                    apply(await request({method: 'POST', body}));
+                    fillThemes(theme);
+                    fillItems(keep);
+                    say({add: 'Ligne ajoutée.', edit: 'Modification enregistrée.', delete: 'Ligne supprimée.'}[action]);
+                    if (configStatus) configStatus.textContent = 'Checklist mise à jour pour tous les rapports.';
+                } catch (error) {
+                    say(error.message || 'Enregistrement impossible.');
+                } finally {
+                    saveButton.disabled = deleteButton.disabled = false;
+                }
+            };
+            themeSelect.addEventListener('change', () => fillItems());
+            itemSelect.addEventListener('change', fillLabel);
+            saveButton.addEventListener('click', () => send(itemSelect.value ? 'edit' : 'add'));
+            deleteButton.addEventListener('click', () => send('delete'));
+            dialog.querySelector('[data-config-close]').addEventListener('click', () => dialog.close());
+            configureButton.addEventListener('click', () => {
+                const open = checklist.querySelector('[data-training-theme][open]');
+                fillThemes(open ? open.dataset.trainingTheme : '');
+                fillItems();
+                say(navigator.onLine ? '' : 'Hors ligne : la configuration ne peut pas être modifiée.');
+                dialog.showModal();
+            });
+        }
+    }})();

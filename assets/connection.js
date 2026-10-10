@@ -1,5 +1,6 @@
 (() => {
     'use strict';
+    if (!window.FoxAppMode.usesLocalReports()) return;
     let generation=0;
     function display(state,message) {
         document.body.dataset.connectionState=state;

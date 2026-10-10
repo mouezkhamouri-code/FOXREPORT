@@ -10,6 +10,8 @@ header('Referrer-Policy: no-referrer');
 header('Cache-Control: private, no-store');
 
 require_once __DIR__ . '/app/pdf.php';
+require_once __DIR__ . '/app/device-catalogue.php';
+require_once __DIR__ . '/app/training-catalogue.php';
 
 $report = [];
 $devices = [];
@@ -43,6 +45,9 @@ if (isset($_GET['id'])) {
         $query = $pdo->prepare('SELECT * FROM foxreport_devices WHERE report_id = ? ORDER BY id');
         $query->execute([$id]);
         $devices = $query->fetchAll();
+        $deviceCategories += deviceCatalogueCategories(deviceCatalogue($pdo));
+        try { loadTrainingChecklist($pdo); }
+        catch (PDOException $exception) { error_log('FoxReport training checklist unavailable for PDF; SQLSTATE ' . $exception->getCode()); }
         $query = $pdo->prepare('SELECT * FROM foxreport_photos WHERE report_id = ? AND deleted_at IS NULL ORDER BY section_number, sort_order, id');
         $query->execute([$id]);
         $photos = $query->fetchAll();

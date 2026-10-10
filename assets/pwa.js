@@ -1,11 +1,13 @@
 (async () => {
     'use strict';
+    if (!window.FoxAppMode.usesLocalReports()) return;
     const form = document.querySelector('#report-form');
     const user = document.body.dataset.user;
     if (!user || !window.FoxLocal || !window.FoxSync) return;
     localStorage.setItem('foxreport-user',user);
     const state = document.querySelector('#sync-state');
     const pendingPanel = document.querySelector('#local-sync-status');
+    if (pendingPanel) pendingPanel.hidden=false;
     const conflictsPanel=document.createElement('section');
     conflictsPanel.className='panel';conflictsPanel.hidden=true;
     if (!form && pendingPanel) pendingPanel.after(conflictsPanel);
@@ -304,6 +306,34 @@
                 } else persist().then(()=>sync(status)).catch(showError);
             });
             window.addEventListener('online',()=>sync().catch(showError));
+            document.querySelector('.report-preview')?.addEventListener('click',async event=>{
+                event.preventDefault();
+                if (event.currentTarget.getAttribute('aria-disabled')==='true' || resolving || resolutionFinished) return;
+                // Open synchronously to keep the user gesture, then point it to the PDF once the server has every local change.
+                const viewer=window.open('','_blank');
+                if (viewer) { viewer.opener=null; viewer.document.title='FoxReport'; viewer.document.body.textContent='Synchronisation du rapport avant la prévisualisation…'; }
+                try {
+                    clearTimeout(timer);
+                    await window.FoxPhotos?.whenReady();
+                    await persist();
+                    while (syncing) await new Promise(resolve=>setTimeout(resolve,200));
+                    local=await FoxLocal.get(key);
+                    if (local?.dirty || local?.operation) {
+                        if (!navigator.onLine) throw new Error('Hors ligne — prévisualisation disponible après synchronisation des modifications.');
+                        await sync();
+                        local=await FoxLocal.get(key);
+                    }
+                    if (local?.conflict) throw new Error('conflit de versions, prévisualisation indisponible.');
+                    if (local?.dirty || local?.operation) throw new Error('synchronisation incomplète, réessayez la prévisualisation.');
+                    const serverId=Number(local?.serverId || local?.id || id);
+                    if (!Number.isInteger(serverId) || serverId<1) throw new Error('Prévisualisation disponible après la première synchronisation.');
+                    const url=new URL(`rapport.php?id=${serverId}&revision=${encodeURIComponent(local?.revision ?? '')}`,location.href).href;
+                    if (viewer) viewer.location.href=url; else location.href=url;
+                } catch (error) {
+                    viewer?.close();
+                    notify(error.message.startsWith('Hors ligne')?error.message:`Erreur · ${error.message}`);
+                }
+            });
             window.addEventListener('pageshow',()=>{if(navigator.onLine)sync().catch(showError);});
             document.addEventListener('visibilitychange',()=>{if(!document.hidden && navigator.onLine)sync().catch(showError);});
             document.querySelector('#conflict-server')?.addEventListener('click',async event=>{
