@@ -155,3 +155,24 @@ test('Installed desktop editor syncs before loading the inline PDF viewer and ne
     await page.handlers['.report-preview']({preventDefault:()=>{},currentTarget:{getAttribute:()=>null}});
     assert.deepEqual(calls,['viewer','sync','https://fox.test/rapport.php?id=7&revision=4']);
 });
+test('Manual PWA save shows progress until synchronization completes and ignores repeated clicks',async()=>{
+    const page=await fixture({record:{key:'test:7',id:'7',serverId:7,user:'test',revision:3,version:1,
+        entries:[['report_id','7'],['revision','3'],['establishment','Synthetic'],['active_section','1']],
+        photos:[],savedPhotos:[],dirty:true,title:'Synthetic',section:1}});
+    const notices=[];let release;const pending=new Promise(resolve=>{release=resolve;});
+    page.context.window.FoxSaveFeedback={begin:()=>{notices.push('begin');return {finish:(text,kind)=>notices.push([text,kind])};}};
+    page.context.FoxSync.syncRecord=async key=>{await pending;page.records.set(key,{...page.records.get(key),dirty:false,operation:undefined});};
+    const event={preventDefault:()=>{},submitter:{value:'draft'}};
+    const saving=page.handlers.submit(event);await new Promise(resolve=>setImmediate(resolve));
+    await page.handlers.submit(event);assert.deepEqual(notices,['begin']);
+    release();await saving;assert.match(notices[1][0],/avec succès sur le serveur/);assert.equal(notices[1][1],'success');
+});
+test('Offline manual PWA save confirms local storage without claiming a server save',async()=>{
+    const page=await fixture({record:{key:'test:7',id:'7',serverId:7,user:'test',revision:3,version:1,
+        entries:[['report_id','7'],['revision','3'],['establishment','Synthetic'],['active_section','1']],
+        photos:[],savedPhotos:[],dirty:true,title:'Synthetic',section:1}});
+    page.context.navigator.onLine=false;let message;
+    page.context.window.FoxSaveFeedback={begin:()=>({finish:text=>{message=text;}})};
+    await page.handlers.submit({preventDefault:()=>{},submitter:{value:'draft'}});
+    assert.match(message,/enregistré sur cet appareil/);assert.doesNotMatch(message,/avec succès sur le serveur/);
+});

@@ -11,3 +11,8 @@ foreach ([0, '0'] as $answer) {
 $html = reportPdfHtml(['training_delivered' => 1, 'training_topics' => '[]'], [], []);
 if (!str_contains($html, 'Checklist de formation')) throw new RuntimeException('Training marked Yes must keep its programme.');
 echo "PASS: PDF training programme follows the recorded answer, including legacy checklist data.\n";
+
+if (str_contains($html, 'Photos et légendes') || str_contains($html, 'Aucune photo ajoutée à cette section')) {
+    throw new RuntimeException('Sections without photos must not print an empty photo heading or placeholder.');
+}
+echo "PASS: Empty photo blocks are omitted from the PDF.\n";

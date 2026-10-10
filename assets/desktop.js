@@ -38,6 +38,7 @@
         event.preventDefault();
         if (preparing) return;
         preparing = true;
+        const feedback = window.FoxSaveFeedback?.begin(event.submitter);
         try {
             await window.FoxPhotos?.whenReady();
             // Native submission cannot be restarted inside the initial submit dispatch.
@@ -45,10 +46,14 @@
             submitting = true;
             form.requestSubmit(event.submitter || undefined);
             // Validation can prevent the second submit event from firing.
-            if (!form.checkValidity()) submitting = false;
+            if (!form.checkValidity()) {
+                submitting = false;
+                feedback?.finish('Vérifiez les champs du formulaire : le brouillon n’a pas été enregistré.', 'error');
+            }
         } catch (error) {
             submitting = false;
             if (state) state.textContent = `Erreur · ${error.message}`;
+            feedback?.finish(`Échec de l’enregistrement · ${error.message}`, 'error');
         } finally { preparing = false; }
     });
     window.addEventListener('beforeunload', event => {

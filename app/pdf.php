@@ -370,10 +370,9 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
             $html .= '<h3>' . pdfEscape($fieldLabel) . '</h3><div class="notes">'
                 . ($text !== '' ? pdfEscape($text) : '<span class="placeholder">À compléter</span>') . '</div>';
         }
-        if (!in_array($number, [1,13], true)) $html .= '<h3>Photos et légendes</h3>';
         $matchingPhotos = in_array($number, [1,13], true) ? [] : array_filter($photos, static fn(array $photo): bool => (int) $photo['section_number'] === $number);
-        if (!in_array($number, [1,13], true) && $matchingPhotos === []) {
-            $html .= '<div class="notes placeholder">Aucune photo ajoutée à cette section.</div>';
+        if ($matchingPhotos !== []) {
+            $html .= '<h3>Photos et légendes</h3>';
         }
         $squarePhotos = in_array($number, FOXREPORT_SQUARE_PHOTO_SECTIONS, true);
         if ($squarePhotos && $matchingPhotos !== []) {

@@ -119,3 +119,15 @@ test('Desktop preview refuses stale server data when the current form contains u
     page.fields[0][1]='Changed';
     await assert.rejects(page.context.window.FoxBeforePreview(),/Enregistrez le brouillon avant de prévisualiser/);
 });
+test('Save feedback keeps the submitter value enabled, shows progress and restores its label on completion',()=>{
+    const notices=[];const button={textContent:'Enregistrer le brouillon',value:'draft',classList:{add:()=>{},remove:()=>{}},
+        setAttribute(name,value){this[name]=value;},removeAttribute(name){delete this[name];}};
+    const context={window:{},document:{body:{dataset:{},append:node=>notices.push(node)},createElement:()=>({dataset:{},setAttribute:()=>{}})},
+        setTimeout:()=>1,clearTimeout:()=>{}};
+    vm.runInNewContext(fs.readFileSync('assets/save-feedback.js','utf8'),context);
+    const feedback=context.window.FoxSaveFeedback.begin(button);
+    assert.equal(button.textContent,'Enregistrement…');assert.equal(button.disabled,undefined);assert.equal(button.value,'draft');
+    assert.equal(notices[0].dataset.state,'pending');
+    feedback.finish('Brouillon enregistré');assert.equal(button.textContent,'Enregistrer le brouillon');assert.equal(button['aria-busy'],undefined);
+    assert.equal(notices[0].dataset.state,'success');assert.equal(notices[0].textContent,'Brouillon enregistré');
+});

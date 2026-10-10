@@ -87,6 +87,7 @@
     let local;
     let timer;
     let syncing=false;
+    let manualSaving=false;
     let resolving=false;
     let resolutionFinished=false;
     let refreshedPhotoIds=new Set();
@@ -298,12 +299,36 @@
             form.addEventListener('input',changed);
             form.addEventListener('change',changed);
             form.addEventListener('fox-change',changed);
-            form.addEventListener('submit',event=>{
+            form.addEventListener('submit',async event=>{
                 event.preventDefault();
+                if (manualSaving || resolving || resolutionFinished) return;
+                manualSaving=true;
+                const feedback=window.FoxSaveFeedback?.begin(event.submitter);
                 const status=event.submitter?.value==='finalized'?'finalized':'draft';
-                if(status==='finalized' && !navigator.onLine) {
-                    persist().then(()=>notify('Hors ligne — enregistré sur cet appareil. Finalisez le rapport après synchronisation.')).catch(showError);
-                } else persist().then(()=>sync(status)).catch(showError);
+                try {
+                    await window.FoxPhotos?.whenReady();
+                    await persist();
+                    while (syncing) await new Promise(resolve=>setTimeout(resolve,200));
+                    if (status==='finalized' && !navigator.onLine) {
+                        notify('Hors ligne — enregistré sur cet appareil. Finalisez le rapport après synchronisation.');
+                    } else await sync(status);
+                    local=await FoxLocal.get(key);
+                    if (local?.conflict || local?.localDeleted || local?.conflictResolved) {
+                        throw new Error(local.error || 'Vérifiez le conflit avant de poursuivre.');
+                    }
+                    if (!local) throw new Error('Le brouillon n’a pas pu être retrouvé sur cet appareil.');
+                    const pending=local.dirty || local.operation;
+                    const message=!navigator.onLine
+                        ? '✓ Brouillon enregistré sur cet appareil · synchronisation dès le retour du réseau.'
+                        : pending ? 'Brouillon enregistré sur cet appareil · synchronisation en attente.'
+                        : '✓ Brouillon enregistré avec succès sur le serveur et cet appareil.';
+                    if (pending && navigator.onLine && state?.textContent.startsWith('Erreur')) {
+                        feedback?.finish(`Brouillon conservé sur cet appareil · ${state.textContent}`, 'error');
+                    } else feedback?.finish(message, pending && navigator.onLine ? 'info' : 'success');
+                } catch(error) {
+                    showError(error);
+                    feedback?.finish(`Échec de l’enregistrement · ${error.message}`, 'error');
+                } finally { manualSaving=false; }
             });
             window.addEventListener('online',()=>sync().catch(showError));
             document.querySelector('.report-preview')?.addEventListener('click',async event=>{

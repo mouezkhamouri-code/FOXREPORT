@@ -736,6 +736,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
                         $pdo->commit();
                         if ($apiRequest) { syncJson($result); }
+                        if ($targetStatus === 'draft') { $_SESSION['foxreport_saved_report'] = $id; }
                         redirectTo('index.php?id=' . $id . '&section=' . $activeSection);
                     } catch (ReportConflict $exception) {
                         if ($pdo->inTransaction()) { $pdo->rollBack(); }
@@ -1013,6 +1014,8 @@ if ($templateRequest) {
 }
 $selectedId = isset($_GET['id']) && $reportId ? (int) $reportId : 0;
 $isEditable = !$report || $report['status'] === 'draft';
+$saveConfirmed = $selectedId > 0 && (int) ($_SESSION['foxreport_saved_report'] ?? 0) === $selectedId;
+if ($saveConfirmed) { unset($_SESSION['foxreport_saved_report']); }
 $isEditor = ($selectedId > 0 || $templateRequest) && $report !== null;
 if ($report !== null && !array_key_exists('completed_sections', $report)) {
     http_response_code(503);
@@ -1082,12 +1085,13 @@ try {
     <script src="<?= h(foxAsset('assets/photos.js')) ?>" defer></script>
     <script src="<?= h(foxAsset('assets/scanner.js')) ?>" defer></script>
     <script src="<?= h(foxAsset('assets/location.js')) ?>" defer></script>
+    <script src="<?= h(foxAsset('assets/save-feedback.js')) ?>" defer></script>
     <script src="<?= h(foxAsset('assets/report-preview.js')) ?>" defer></script>
     <script src="<?= h(foxAsset('assets/pwa.js')) ?>" defer></script>
     <script src="<?= h(foxAsset('assets/desktop.js')) ?>" defer></script>
     <script src="<?= h(foxAsset('assets/report-list.js')) ?>" defer></script>
 </head>
-<body data-user="<?= h($currentUser['sub']) ?>" data-app-version="<?= h(FOXREPORT_VERSION) ?>" data-release-version="<?= h(FOXREPORT_RELEASE_VERSION) ?>">
+<body data-save-confirmed="<?= $saveConfirmed ? 'true' : 'false' ?>" data-user="<?= h($currentUser['sub']) ?>" data-app-version="<?= h(FOXREPORT_VERSION) ?>" data-release-version="<?= h(FOXREPORT_RELEASE_VERSION) ?>">
 <header class="topbar">
     <a class="brand" href="index.php" aria-label="FoxReport, liste des rapports">
         <img class="brand-logo" src="assets/icons/icon-192.png" width="44" height="44" alt=""><span class="brand-copy"><span>Fox<span>Report</span></span><small class="brand-version">Version <?= h(FOXREPORT_RELEASE_VERSION) ?></small></span>
