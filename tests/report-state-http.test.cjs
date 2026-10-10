@@ -35,6 +35,7 @@ test('Real report save and sync persist section validation, preserve legacy stat
         fs.writeFileSync(path.join(directory,'app','auth.php'),`<?php
             session_start(); $_SESSION['foxreport_csrf']='synthetic-csrf';
             function requireFoxAuth(bool $api): array {
+                if(isset($_GET['test_error'])) throw new TypeError('Synthetic internal failure');
                 if(isset($_GET['test_denied'])){http_response_code(401);echo '{"error":"Unauthorized"}';exit;}
                 return ['sub'=>'synthetic-user','email'=>'test@example.com'];
             }`);
@@ -298,12 +299,16 @@ test('Real report save and sync persist section validation, preserve legacy stat
         }]};
         const first=await save(1,'[6,13]',{request_id:requestId,context_notes:'Synthetic saved content',sales_rep_id:'1',sales_rep:'Spoofed name',intervention_followup:followup,postal_code:'34280',city:'LA GRANDE MOTTE',
             device_catalogue:JSON.stringify(offlineCatalogue),'devices[0][category]':offlineCategory,'devices[0][model]':'Offline Model',
-            'devices[0][serial_number]':'OFFLINE-001','devices[0][state]':'installed'});
-        assert.equal(first.status,200,await first.clone().text());
+            'devices[0][serial_number]':'OFFLINE-001','devices[0][state]':'installed',
+            payment_tpe_status:'good',payment_tap_to_pay_status:'issue','training_done[]':addedItem.key});
+        assert.equal(first.status,200,`${await first.clone().text()}\n${logs}`);
         assert.equal((await first.json()).revision,2);
         const saved=await getPage();
         assert.match(saved,/report-accordion is-complete" data-section-accordion="6"/);
         assert.match(saved,/Synthetic saved content/);
+        assert.match(saved, /name="payment_tpe_status"[\s\S]*?<option value="good" selected>/);
+        assert.match(saved, /name="payment_tap_to_pay_status"[\s\S]*?<option value="issue" selected>/);
+        assert.match(saved, new RegExp(`name="training_done\\[\\]" value="${addedItem.key}" checked`));
         assert.match(saved,/name="sales_rep" value="Example Alice"/);
         assert.match(saved,/name="postal_code" value="34280"/);
         assert.match(saved,/name="city" value="LA GRANDE MOTTE"/);
@@ -418,6 +423,13 @@ test('Real report save and sync persist section validation, preserve legacy stat
         assert.equal(csrf.status,403);
         const denied=await fetch(base+'?api=reports&test_denied=1');
         assert.equal(denied.status,401);
+        const internal=await fetch(base+'?api=session&test_error=1');
+        assert.equal(internal.status,500);
+        const internalBody=await internal.json();
+        assert.match(internalBody.error,/Référence : [a-f0-9]{16}/);
+        assert.doesNotMatch(internalBody.error,/Synthetic internal failure|TypeError/);
+        await new Promise(resolve=>setTimeout(resolve,20));
+        assert.match(logs,/FoxReport API failure; reference [a-f0-9]{16}; TypeError; auth.php:\d+/);
         assert.doesNotMatch(logs,/PHP (?:Warning|Fatal|Parse)/);
     } finally {
         if(child && child.exitCode===null) await new Promise(resolve=>{child.once('exit',resolve);child.kill();});

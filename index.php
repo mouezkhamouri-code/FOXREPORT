@@ -1,9 +1,22 @@
 <?php
 declare(strict_types=1);
 
+$apiRequest = isset($_GET['api']);
+require_once __DIR__ . '/app/sync.php';
+if ($apiRequest) {
+    set_exception_handler(static function (Throwable $exception): void {
+        $reference = bin2hex(random_bytes(8));
+        error_log('FoxReport API failure; reference ' . $reference . '; ' . get_class($exception)
+            . '; ' . basename($exception->getFile()) . ':' . $exception->getLine());
+        $connection = $GLOBALS['pdo'] ?? null;
+        if ($connection instanceof PDO && $connection->inTransaction()) {
+            $connection->rollBack();
+        }
+        syncJson(['error' => 'Erreur interne du serveur. Vos données locales sont conservées. Référence : ' . $reference], 500);
+    });
+}
 require_once __DIR__ . '/app/auth.php';
 require_once __DIR__ . '/app/version.php';
-$apiRequest = isset($_GET['api']);
 $templateRequest = $apiRequest && ($_GET['api'] ?? '') === 'template' && $_SERVER['REQUEST_METHOD'] === 'GET';
 $currentUser = requireFoxAuth($apiRequest);
 
@@ -34,7 +47,6 @@ if (!is_string($connectedDatabase) || stripos($connectedDatabase, 'planesto') !=
 require_once __DIR__ . '/app/report-definition.php';
 require_once __DIR__ . '/app/images.php';
 require_once __DIR__ . '/app/completion.php';
-require_once __DIR__ . '/app/sync.php';
 require_once __DIR__ . '/app/maps.php';
 require_once __DIR__ . '/app/report-list.php';
 require_once __DIR__ . '/app/report-delete.php';
@@ -275,6 +287,7 @@ function loadPostedReport(array &$errors): array
     $data['nebula_controller_configured'] = nullableBoolPost('nebula_controller_configured', $errors);
     $data['switch_present'] = nullableBoolPost('switch_present', $errors);
     $data['network_type'] = enumPost('network_type', ['', 'professional_patch_panel', 'makeshift_patch_panel', 'loose_cables'], $errors);
+    $statusOptions = ['', 'good', 'limited', 'issue', 'not_applicable'];
     $data['payment_tpe_status'] = enumPost('payment_tpe_status', $statusOptions, $errors);
     $data['payment_tap_to_pay_status'] = enumPost('payment_tap_to_pay_status', $statusOptions, $errors);
     $data['apple_account_status'] = enumPost('apple_account_status', ['', 'ready', 'issue', 'not_applicable'], $errors);

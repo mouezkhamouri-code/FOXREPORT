@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const esbuild = require('esbuild');
 const crypto = require('node:crypto');
-const RELEASE_VERSION = '1.01';
+const RELEASE_VERSION = '1.02';
 
 async function build() {
     await esbuild.build({
@@ -45,7 +45,7 @@ async function build() {
     const hash=crypto.createHash('sha256');
     for(const file of files.sort()) {
         const data=file==='offline.html'
-            ? fs.readFileSync(file,'utf8').replace(/\?v=[a-z0-9-]+/g,'').replace(/data-app-version="[^"]*"/,'data-app-version=""')
+            ? fs.readFileSync(file,'utf8').replace(/\?v=[a-z0-9-]+/g,'').replace(/data-app-version="[^"]*"/,'data-app-version=""').replace(/data-release-version="[^"]*"/,'data-release-version=""')
             :fs.readFileSync(file);
         hash.update(file.split(path.sep).join('/')).update(data);
     }

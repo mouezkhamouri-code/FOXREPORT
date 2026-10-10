@@ -54,9 +54,10 @@
                     details.append(retry);
                 }
                 if (entry.status==='error' && entry.recordId) {
+                    const localRecord = await FoxLocal.get(entry.key);
                     const open=document.createElement('a');
                     open.className='button button-secondary button-small';
-                    open.href=`offline.html?id=${encodeURIComponent(entry.recordId)}`;
+                    open.href=`offline.html?id=${encodeURIComponent(localRecord?.id || entry.recordId)}`;
                     open.textContent='Ouvrir le brouillon';
                     details.append(open);
                 }
