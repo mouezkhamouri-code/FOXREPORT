@@ -1082,6 +1082,7 @@ try {
     <script src="<?= h(foxAsset('assets/photos.js')) ?>" defer></script>
     <script src="<?= h(foxAsset('assets/scanner.js')) ?>" defer></script>
     <script src="<?= h(foxAsset('assets/location.js')) ?>" defer></script>
+    <script src="<?= h(foxAsset('assets/report-preview.js')) ?>" defer></script>
     <script src="<?= h(foxAsset('assets/pwa.js')) ?>" defer></script>
     <script src="<?= h(foxAsset('assets/desktop.js')) ?>" defer></script>
     <script src="<?= h(foxAsset('assets/report-list.js')) ?>" defer></script>

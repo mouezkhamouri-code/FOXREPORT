@@ -139,3 +139,19 @@ test('Preview offline with pending changes keeps the form and does not open a st
     assert.equal(viewer.location.href,undefined);
     assert.match(page.state.textContent,/Hors ligne — prévisualisation/);
 });
+test('Installed desktop editor syncs before loading the inline PDF viewer and never opens an app window',async()=>{
+    const page=await fixture({record:{key:'test:7',id:'7',serverId:7,user:'test',revision:3,version:1,
+        entries:[['report_id','7'],['revision','3'],['establishment','Synthetic'],['active_section','1']],
+        photos:[],savedPhotos:[],dirty:true,title:'Synthetic',section:1}});
+    const calls=[];
+    page.context.location.href='https://fox.test/index.php?id=7';
+    page.context.window.open=()=>{throw new Error('Unexpected application window');};
+    page.context.window.FoxReportPreview={isDesktop:()=>true,open:()=>{
+        calls.push('viewer');return {load:async url=>calls.push(url),close:()=>calls.push('close')};
+    }};
+    page.context.FoxSync.syncRecord=async key=>{
+        calls.push('sync');page.records.set(key,{...page.records.get(key),dirty:false,operation:undefined,revision:4});
+    };
+    await page.handlers['.report-preview']({preventDefault:()=>{},currentTarget:{getAttribute:()=>null}});
+    assert.deepEqual(calls,['viewer','sync','https://fox.test/rapport.php?id=7&revision=4']);
+});

@@ -42,7 +42,7 @@
                 preview.setAttribute('aria-disabled','true');
                 preview.textContent='Prévisualisation après synchronisation';
             }
-            for(const file of ['assets/app.js','assets/device-catalogue.js','assets/device-cards.js','assets/photos.js','assets/scanner.js','assets/location.js','assets/pwa.js','assets/sync-log.js']) {
+            for(const file of ['assets/app.js','assets/device-catalogue.js','assets/device-cards.js','assets/photos.js','assets/scanner.js','assets/location.js','assets/report-preview.js','assets/pwa.js','assets/sync-log.js']) {
                 await new Promise((resolve,reject)=>{
                     const script=document.createElement('script');
                     const version=document.body.dataset.appVersion;

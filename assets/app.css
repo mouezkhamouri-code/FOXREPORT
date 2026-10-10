@@ -416,3 +416,13 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
+
+/* Desktop PDF preview stays in the current page, including installed PWA windows. */
+.report-preview-dialog { width: calc(100vw - 48px); max-width: 1440px; height: calc(100dvh - 48px); max-height: calc(100dvh - 48px); padding: 0; border: 1px solid var(--line); border-radius: 14px; background: #FFFFFF; color: var(--ink); }
+.report-preview-dialog[open] { display: flex; flex-direction: column; }
+.report-preview-dialog::backdrop { background: #17203399; }
+.report-preview-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.report-preview-toolbar strong { flex: 1; }
+.report-preview-dialog iframe { flex: 1; width: 100%; min-height: 0; border: 0; }
+.report-preview-status { padding: 20px; }
+.report-preview-dialog [hidden] { display: none; }

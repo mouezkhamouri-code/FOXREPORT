@@ -310,8 +310,8 @@
                 event.preventDefault();
                 if (event.currentTarget.getAttribute('aria-disabled')==='true' || resolving || resolutionFinished) return;
                 // Open synchronously to keep the user gesture, then point it to the PDF once the server has every local change.
-                const viewer=window.open('','_blank');
-                if (viewer) { viewer.opener=null; viewer.document.title='FoxReport'; viewer.document.body.textContent='Synchronisation du rapport avant la prévisualisation…'; }
+                const viewer=window.FoxReportPreview?.isDesktop() ? window.FoxReportPreview.open() : window.open('','_blank');
+                if (viewer && !viewer.load) { viewer.opener=null; viewer.document.title='FoxReport'; viewer.document.body.textContent='Synchronisation du rapport avant la prévisualisation…'; }
                 try {
                     clearTimeout(timer);
                     await window.FoxPhotos?.whenReady();
@@ -328,7 +328,8 @@
                     const serverId=Number(local?.serverId || local?.id || id);
                     if (!Number.isInteger(serverId) || serverId<1) throw new Error('Prévisualisation disponible après la première synchronisation.');
                     const url=new URL(`rapport.php?id=${serverId}&revision=${encodeURIComponent(local?.revision ?? '')}`,location.href).href;
-                    if (viewer) viewer.location.href=url; else location.href=url;
+                    if (viewer?.load) await viewer.load(url);
+                    else if (viewer) viewer.location.href=url; else location.href=url;
                 } catch (error) {
                     viewer?.close();
                     notify(error.message.startsWith('Hors ligne')?error.message:`Erreur · ${error.message}`);
