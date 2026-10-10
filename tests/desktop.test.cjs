@@ -113,3 +113,9 @@ test('Desktop handler does not replace PWA persistence or reopen finalized repor
     for(const file of ['index.php','offline.html','sw.js']) assert.match(fs.readFileSync(file,'utf8'),/assets\/app-mode.js/);
     assert.match(fs.readFileSync('index.php','utf8'),/id="local-sync-status" role="status" hidden/);
 });
+test('Desktop preview refuses stale server data when the current form contains unsaved changes',async()=>{
+    const page=fixture();
+    await page.context.window.FoxBeforePreview();
+    page.fields[0][1]='Changed';
+    await assert.rejects(page.context.window.FoxBeforePreview(),/Enregistrez le brouillon avant de prévisualiser/);
+});

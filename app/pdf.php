@@ -95,10 +95,11 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
         6 => ['wifi_ap'], 7 => ['printer_wired', 'printer_wifi', 'printer_portable'],
         8 => ['payment_terminal', 'nyc_mobile_tap'], 9 => ['ipad_pro', 'ipad', 'ipad_mini', 'iphone'],
     ];
-    $training = trainingChecklistState($report['training_topics'] ?? []);
     $trainingDelivered = $report['training_delivered'] ?? null;
     $noTraining = ($trainingDelivered !== null && $trainingDelivered !== '' && (int) $trainingDelivered === 0)
         || in_array($report['skills_transfer'] ?? '', ['not_done', 'already_trained'], true);
+    // An irrelevant (possibly legacy) checklist must neither render nor break a report.
+    $training = $noTraining ? ['items' => [], 'legacy' => []] : trainingChecklistState($report['training_topics'] ?? []);
     $name = trim((string) ($report['establishment'] ?? ''));
     $locality = trim((string) ($report['postal_code'] ?? '') . ' ' . (string) ($report['city'] ?? ''));
     $date = (string) ($report['report_date'] ?? '');

@@ -40,3 +40,9 @@ test('Desktop preview rejects sign-in HTML instead of embedding it as a PDF',asy
 test('Mobile and local editor previews keep their existing navigation and synchronization handlers',()=>{
     for(const options of [{desktop:false},{local:true}]){const page=fixture(options);assert.equal(page.click(),false);assert.equal(page.requests.length,0);}
 });
+test('An unsaved desktop form shows the save instruction without fetching an outdated PDF',async()=>{
+    const page=fixture();const viewer=page.context.window.FoxReportPreview.open();
+    await viewer.load('https://fox.test/rapport.php?id=7',async()=>{throw new Error('Enregistrez le brouillon avant de prévisualiser');});
+    assert.equal(page.requests.length,0);
+    assert.match(page.nodes.find(n=>n.tag==='p').textContent,/Enregistrez le brouillon/);
+});

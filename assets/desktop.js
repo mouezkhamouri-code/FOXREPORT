@@ -57,6 +57,12 @@
             event.returnValue = '';
         }
     });
+    window.FoxBeforePreview = async () => {
+        await window.FoxPhotos?.whenReady();
+        if (signature() !== initialSignature) {
+            throw new Error('Enregistrez le brouillon avant de prévisualiser : le PDF doit reprendre vos dernières modifications.');
+        }
+    };
     window.FoxBeforeUpdate = async () => {
         await window.FoxPhotos?.whenReady();
         if (changed) throw new Error('Enregistrez vos modifications sur le serveur avant la mise à jour.');

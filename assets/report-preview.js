@@ -42,10 +42,12 @@
         dialog.showModal();
         return {
             close: () => dialog.close(),
-            async load(url) {
+            async load(url, prepare) {
                 if (closed) return;
                 status.textContent = 'Chargement du PDF…';
                 try {
+                    await prepare?.();
+                    if (closed) return;
                     const response = await fetch(url, {credentials: 'same-origin', cache: 'no-store', signal: controller.signal});
                     if (!response.ok || !response.headers.get('Content-Type')?.toLowerCase().startsWith('application/pdf')) {
                         throw new Error('Le PDF est indisponible. Vérifiez votre connexion et réessayez.');
@@ -79,6 +81,6 @@
         if (link.classList.contains('report-preview') && window.FoxAppMode?.usesLocalReports() && document.querySelector('#report-form')) return;
         event.preventDefault();
         link.closest('dialog')?.close();
-        open().load(url.href);
+        open().load(url.href, link.classList.contains('report-preview') ? window.FoxBeforePreview : undefined);
     });
 })();
