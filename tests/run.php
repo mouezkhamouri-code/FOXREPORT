@@ -210,8 +210,8 @@ try {
     check($squareSize !== false && $squareSize[0] === $squareSize[1], 'Existing non-square Wi-Fi photos are center-cropped square in the PDF');
     check(str_contains(reportPdfHtml([], [], [array_replace($photos[0], ['section_number'=>5])]), 'TEST photo caption') && !str_contains(reportPdfHtml([], [], [array_replace($photos[0], ['section_number'=>5])]), 'class="photo square-photo"'), 'Other sections keep full-width photos');
     $emptyComments = reportPdfHtml([], [], []);
-    check(!str_contains($emptyComments, 'Commentaire matériel') && !str_contains($emptyComments, 'Commentaire Wi-Fi') && substr_count($emptyComments, 'À compléter') === 1, 'Empty comments are hidden in the PDF');
-    check(str_contains(reportPdfHtml(['equipment_comment'=>'Synthetic <material> note'], [], []), '<h3>Commentaire matériel</h3><div class="notes">Synthetic &lt;material&gt; note</div>'), 'Filled equipment comment is shown escaped');
+    check(!str_contains($emptyComments, 'Commentaire matériel') && !str_contains($emptyComments, 'Commentaire Wi-Fi') && !str_contains($emptyComments, 'À compléter'), 'Empty comments are hidden in the PDF');
+    check(str_contains(reportPdfHtml(['equipment_comment'=>'Synthetic <material> note'], [], []), '<div class="notes">Synthetic &lt;material&gt; note</div>'), 'Filled equipment comment is shown escaped');
     $notTrained = reportPdfHtml(['training_delivered'=>0, 'training_participants'=>3, 'training_topics'=>'["orders_service"]'], [], []);
     $alreadyTrained = reportPdfHtml(['skills_transfer'=>'already_trained'], [], []);
     check(!str_contains($notTrained, 'Checklist de formation') && !str_contains($notTrained, 'Nombre de participants') && !str_contains($alreadyTrained, 'Checklist de formation') && str_contains($html, 'Checklist de formation'), 'Training details are hidden when no training took place');

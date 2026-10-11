@@ -176,16 +176,16 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
         .devices { font-size: 7pt; margin-bottom: 4mm; }
         .devices th, .devices td { padding: 2mm; }
         .device-comment { margin-top: 1mm; color: #596579; }
-        .notes { border: 1px solid #DCE5E7; border-radius: 2mm; min-height: 26mm; padding: 3mm; margin-bottom: 4mm; white-space: pre-wrap; word-wrap: break-word; }
+        .notes { margin: 3mm 0 4mm; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }
         .placeholder { color: #8893a4; }
-        .photo { page-break-inside: avoid; margin: 4mm 0; padding: 3mm; border: 1px solid #DCE5E7; border-radius: 2mm; text-align: center; }
-        .photo img { max-width: 165mm; max-height: 70mm; }
+        .photo { page-break-inside: avoid; margin: 4mm 0; padding: 0; border: 0; text-align: center; }
+        .photo img { max-width: 165mm; max-height: 70mm; border-radius: 2mm; }
         .photo.widescreen img { width: 165mm; height: auto; max-height: none; }
         .caption { margin: 2mm 0 0; font-size: 8pt; word-wrap: break-word; }
         .square-photos { width: 100%; border-collapse: separate; border-spacing: 3mm 0; margin: 2mm -3mm; table-layout: fixed; }
         .square-photos tr { page-break-inside: avoid; }
         .square-photos td { width: 50%; padding: 0; border: 0; vertical-align: top; }
-        .photo.square-photo { margin: 0 0 3mm; padding: 2mm; border-radius: 2mm; }
+        .photo.square-photo { margin: 0 0 3mm; padding: 0; }
         .photo.square-photo img { width: 76mm; height: 76mm; max-width: none; max-height: none; }
         .location { page-break-inside: avoid; margin: 4mm 0; }
         .location img { width: 176mm; height: 99mm; }
@@ -319,12 +319,9 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
             $html .= '</table>';
         }
         if (isset($deviceSections[$number])) {
-            $html .= '<h3>Appareils détaillés</h3>';
             $matching = array_filter($devices, static fn(array $device): bool => in_array($device['category'], $deviceSections[$number], true));
-            if ($matching === []) {
-                $html .= '<p class="placeholder">Aucun appareil renseigné.</p>';
-            } else {
-                $html .= '<table class="devices"><thead><tr><th>Catégorie / marque / modèle</th><th>Numéro de série / MAC</th><th>Emplacement / état</th></tr></thead><tbody>';
+            if ($matching !== []) {
+                $html .= '<h3>Appareils détaillés</h3><table class="devices"><thead><tr><th>Catégorie / marque / modèle</th><th>Numéro de série / MAC</th><th>Emplacement / état</th></tr></thead><tbody>';
             }
             foreach ($matching as $device) {
                 $comment = (string) ($device['comment'] ?? '');
@@ -370,16 +367,12 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
                 continue;
             }
             $text = (string) ($report[$key] ?? '');
-            if ($key !== 'conclusion' && trim($text) === '') {
+            if (trim($text) === '') {
                 continue;
             }
-            $html .= '<h3>' . pdfEscape($fieldLabel) . '</h3><div class="notes">'
-                . ($text !== '' ? pdfEscape($text) : '<span class="placeholder">À compléter</span>') . '</div>';
+            $html .= '<div class="notes">' . pdfEscape($text) . '</div>';
         }
         $matchingPhotos = in_array($number, [1,13], true) ? [] : array_filter($photos, static fn(array $photo): bool => (int) $photo['section_number'] === $number);
-        if ($matchingPhotos !== []) {
-            $html .= '<h3>Photos et légendes</h3>';
-        }
         $squarePhotos = in_array($number, FOXREPORT_SQUARE_PHOTO_SECTIONS, true);
         if ($squarePhotos && $matchingPhotos !== []) {
             $html .= '<table class="square-photos">';
