@@ -1,4 +1,4 @@
 <?php
 declare(strict_types=1);
-const FOXREPORT_VERSION = 'foxreport-shell-c7da2fcf1d7a0f4b';
-const FOXREPORT_RELEASE_VERSION = '1.08';
+const FOXREPORT_VERSION = 'foxreport-shell-717890f6bbf18455';
+const FOXREPORT_RELEASE_VERSION = '1.09';

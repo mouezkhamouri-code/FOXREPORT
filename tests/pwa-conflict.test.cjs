@@ -139,7 +139,7 @@ test('Preview offline with pending changes keeps the form and does not open a st
     assert.equal(viewer.location.href,undefined);
     assert.match(page.state.textContent,/Hors ligne — prévisualisation/);
 });
-test('Installed desktop editor syncs before loading the inline PDF viewer and never opens an app window',async()=>{
+test('Installed desktop editor syncs before handing its PDF to the external preview page',async()=>{
     const page=await fixture({record:{key:'test:7',id:'7',serverId:7,user:'test',revision:3,version:1,
         entries:[['report_id','7'],['revision','3'],['establishment','Synthetic'],['active_section','1']],
         photos:[],savedPhotos:[],dirty:true,title:'Synthetic',section:1}});
