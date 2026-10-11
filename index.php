@@ -952,7 +952,7 @@ function statusSelect(array $data, string $name, string $label): void
         'good' => 'Bon',
         'limited' => 'Limité',
         'issue' => 'À résoudre',
-        'not_applicable' => 'Non applicable',
+        'not_applicable' => 'Pas de terminaux',
     ]);
 }
 

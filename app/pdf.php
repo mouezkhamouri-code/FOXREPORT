@@ -113,7 +113,7 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
     $headerHeight = max(25, 12 + $nameLines * 6 + $localityLines * 6);
     $topMargin = $headerHeight + 10;
     $sitePhotos = array_values(array_filter($photos, static fn(array $photo): bool => (int) $photo['section_number'] === 1));
-    $reportStatus = $report === [] ? 'MODÈLE VIDE' : (($report['status'] ?? 'draft') === 'finalized' ? 'FINALISÉ' : 'BROUILLON');
+    $reportStatus = $report === [] ? 'MODÈLE VIDE' : (($report['status'] ?? 'draft') === 'finalized' ? '' : 'BROUILLON');
     $html = '<!doctype html><html lang="fr"><head><meta charset="utf-8"><style>
         @page { margin: ' . $topMargin . 'mm 17mm 32mm; }
         body { font-family: "DejaVu Sans", sans-serif; font-size: 9pt; color: #172033; }
@@ -132,7 +132,7 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
         .report-footer { position: fixed; bottom: -26mm; left: 0; right: 0; height: 22mm; border-top: 1px solid #172033; padding-top: 1mm; }
         .report-footer-brand { font-size: 9pt; font-weight: bold; margin-bottom: 2mm; }
         .report-footer-meta { font-size: 7pt; line-height: 1.3; word-wrap: break-word; padding-right: 24mm; }
-        .report-footer-status { position: absolute; top: 7mm; right: 0; font-size: 7pt; color: #596579; }
+        .report-footer-status { position: absolute; top: 10mm; right: 0; font-size: 7pt; color: #596579; }
         .report-footer-confidential { position: absolute; bottom: 0; left: 0; right: 0; text-align: center; font-size: 9pt; font-weight: bold; font-style: italic; color: #D00000; }
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         th, td { padding: 3mm; border: 1px solid #DCE5E7; vertical-align: top; word-wrap: break-word; }
@@ -208,8 +208,9 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
         . pdfEscape(trim((string) ($report['author'] ?? '')) ?: 'À renseigner')
         . '</strong> &nbsp; Id Intervention : <strong>'
         . pdfEscape(trim((string) ($report['intervention_id'] ?? '')) ?: 'À renseigner')
-        . '</strong></div><div class="report-footer-status">' . pdfEscape($reportStatus)
-        . '</div><div class="report-footer-confidential">Document confidentiel - NE PAS TRANSMETTRE</div></footer>';
+        . '</strong></div>'
+        . ($reportStatus !== '' ? '<div class="report-footer-status">' . pdfEscape($reportStatus) . '</div>' : '')
+        . '<div class="report-footer-confidential">Document confidentiel - NE PAS TRANSMETTRE</div></footer>';
     $pdfSections = [1 => $sections[1], 3 => 'Liste Matériel']
         + array_diff_key($sections, [1 => true, 2 => true, 3 => true, 12 => true]);
     foreach ($pdfSections as $number => $label) {
@@ -283,10 +284,13 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
                 continue;
             }
             $value = $report[$key] ?? '';
-            if (in_array($key, $booleanFields, true)) {
+            if (in_array($key, ['context_start_time', 'context_end_time'], true) && is_string($value)
+                && preg_match('/^([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/', $value, $time)) {
+                $value = $time[1] . 'H' . $time[2];
+            } elseif (in_array($key, $booleanFields, true)) {
                 $value = $value === '' || $value === null ? '' : ((int) $value === 1 ? 'Oui' : 'Non');
             } elseif (str_ends_with($key, '_status') || in_array($key, ['hardware_installation', 'skills_transfer'], true)) {
-                $value = $statuses[$value] ?? $value;
+                $value = $number === 8 && $value === 'not_applicable' ? 'Pas de terminaux' : ($statuses[$value] ?? $value);
             }
             $rows .= '<tr><th>' . pdfEscape($fieldLabel) . '</th><td>'
                 . ((string) $value !== '' ? nl2br(pdfEscape((string) $value)) : '<span class="placeholder">À renseigner</span>') . '</td></tr>';
