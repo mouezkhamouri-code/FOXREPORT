@@ -12,7 +12,7 @@ if (!str_contains($section, 'Routeur près de la caisse.') || !str_contains($sec
     throw new RuntimeException('PDF must keep escaped free text without redundant headings and empty information blocks.');
 }
 $withDevices = reportPdfHtml([], [['category'=>'wifi_ap','brand'=>'Synthetic','model'=>'AP','serial_number'=>'001','state'=>'installed']], []);
-if (!str_contains($withDevices, '<h3>Appareils détaillés</h3>') || !str_contains($withDevices, 'Synthetic AP')) {
+if (str_contains($withDevices, 'Appareils détaillés') || !str_contains($withDevices, '<table class="devices">') || !str_contains($withDevices, 'Synthetic AP')) {
     throw new RuntimeException('Actual device details must remain visible.');
 }
 echo "PASS: PDF presentation keeps actual content and omits redundant or empty labels.\n";

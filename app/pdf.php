@@ -325,7 +325,7 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
         if (isset($deviceSections[$number])) {
             $matching = array_filter($devices, static fn(array $device): bool => in_array($device['category'], $deviceSections[$number], true));
             if ($matching !== []) {
-                $html .= '<h3>Appareils détaillés</h3><table class="devices"><thead><tr><th>Catégorie / marque / modèle</th><th>Numéro de série / MAC</th><th>Emplacement / état</th></tr></thead><tbody>';
+                $html .= '<table class="devices"><thead><tr><th>Catégorie / marque / modèle</th><th>Numéro de série / MAC</th><th>Emplacement / état</th></tr></thead><tbody>';
             }
             foreach ($matching as $device) {
                 $comment = (string) ($device['comment'] ?? '');
