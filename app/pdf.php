@@ -317,6 +317,12 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
             if (in_array($key, ['context_start_time', 'context_end_time'], true) && is_string($value)
                 && preg_match('/^([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/', $value, $time)) {
                 $value = $time[1] . 'H' . $time[2];
+            } elseif ($key === 'network_type') {
+                $value = [
+                    'professional_patch_panel' => 'Professionnel avec baie de brassage',
+                    'makeshift_patch_panel' => 'Bricolé avec baie de brassage',
+                    'loose_cables' => 'Câbles volants',
+                ][$value] ?? $value;
             } elseif (in_array($key, $booleanFields, true)) {
                 $value = $value === '' || $value === null ? '' : ((int) $value === 1 ? 'Oui' : 'Non');
             } elseif (str_ends_with($key, '_status') || in_array($key, ['hardware_installation', 'skills_transfer'], true)) {
