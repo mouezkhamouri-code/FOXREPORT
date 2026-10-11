@@ -12,6 +12,31 @@ function pdfEscape(string $text): string
     return htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
+function reportPdfFilename(array $report): string
+{
+    $safePart = static function (string $value, string $fallback): string {
+        $value = strtr($value, [
+            'à'=>'a', 'â'=>'a', 'ä'=>'a', 'á'=>'a', 'À'=>'A', 'Â'=>'A', 'Ä'=>'A', 'Á'=>'A',
+            'é'=>'e', 'è'=>'e', 'ê'=>'e', 'ë'=>'e', 'É'=>'E', 'È'=>'E', 'Ê'=>'E', 'Ë'=>'E',
+            'î'=>'i', 'ï'=>'i', 'í'=>'i', 'Î'=>'I', 'Ï'=>'I', 'Í'=>'I',
+            'ô'=>'o', 'ö'=>'o', 'ó'=>'o', 'Ô'=>'O', 'Ö'=>'O', 'Ó'=>'O',
+            'ù'=>'u', 'û'=>'u', 'ü'=>'u', 'ú'=>'u', 'Ù'=>'U', 'Û'=>'U', 'Ü'=>'U', 'Ú'=>'U',
+            'ç'=>'c', 'Ç'=>'C', 'œ'=>'oe', 'Œ'=>'OE', 'æ'=>'ae', 'Æ'=>'AE',
+        ]);
+        $value = trim((string) preg_replace('/[^A-Za-z0-9]+/', '_', $value), '_');
+        return $value !== '' ? substr($value, 0, 100) : $fallback;
+    };
+    $mission = strtolower(substr(reportMissionTitle($report['report_type'] ?? null), strlen('COMPTE RENDU ')));
+    $dateValue = (string) ($report['report_date'] ?? '');
+    $date = DateTimeImmutable::createFromFormat('!Y-m-d', $dateValue);
+    if (!$date || $date->format('Y-m-d') !== $dateValue) {
+        $date = new DateTimeImmutable('now', new DateTimeZone('Europe/Paris'));
+    }
+    return 'LightSpeed_' . $safePart($mission, 'mission') . '_'
+        . $safePart((string) ($report['establishment'] ?? ''), 'restaurant') . '_'
+        . $date->format('m_Y') . '.pdf';
+}
+
 function pdfPhotoHtml(array $photo, bool $cover = false, bool $square = false): string
 {
     $path = storedPhotoPath($photo);
@@ -199,7 +224,7 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
         .training-line { padding: 0.6mm 0 0.6mm 4mm; font-size: 9pt; }
     </style></head><body><header>'
         . ($logo !== null ? '<img class="report-header-logo" src="' . pdfEscape($logo) . '" alt="Logo du rapport">' : '')
-        . '<div class="report-header-text' . ($logo === null ? ' no-logo' : '') . '"><div class="report-header-title">COMPTE RENDU INSTALLATION FORMATION</div>'
+        . '<div class="report-header-text' . ($logo === null ? ' no-logo' : '') . '"><div class="report-header-title">' . pdfEscape(reportMissionTitle($report['report_type'] ?? null)) . '</div>'
         . '<div class="report-header-name">' . pdfEscape($name !== '' ? $name : 'Établissement à renseigner') . '</div>'
         . '<div class="report-header-locality">' . pdfEscape($locality) . ($date !== '' ? ($locality !== '' ? ' &nbsp; ' : '') . 'le ' . pdfEscape($date) : '') . '</div>'
         . '</div></header><footer class="report-footer">'

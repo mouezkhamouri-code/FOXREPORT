@@ -270,6 +270,10 @@ function loadPostedReport(array &$errors): array
     if ($data['gallery_url'] !== '' && !filter_var($data['gallery_url'], FILTER_VALIDATE_URL)) {
         $errors[] = 'Le lien de galerie doit être une URL valide.';
     }
+    // Older offline templates omit this field: preserve the server mission in that case.
+    if (array_key_exists('report_type', $_POST)) {
+        $data['report_type'] = enumPost('report_type', array_keys(reportMissionTypes()), $errors);
+    }
     $data['report_date'] = validDateOrNull(scalarPost('report_date', 10, $errors), $errors);
     $data['order_date'] = validDateOrNull(scalarPost('order_date', 10, $errors), $errors);
 
@@ -1198,6 +1202,9 @@ try {
                 <button type="button" class="button button-secondary" id="conflict-copy">Enregistrer mes saisies dans un nouveau rapport</button>
             </div>
             <fieldset <?= $isEditable ? '' : 'disabled' ?>>
+                <div class="form-grid mission-type-row">
+                    <?php selectField(['report_type' => reportMissionTitle($formData['report_type'] ?? null)], 'report_type', 'Type de mission', reportMissionTypes()); ?>
+                </div>
                 <?php sectionStart(1, $formData, $activeSection); ?>
                     <div class="form-grid commercial-row commercial-row-four">
                         <?php inputField($formData, 'establishment', 'Établissement'); ?>

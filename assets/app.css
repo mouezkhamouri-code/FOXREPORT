@@ -425,3 +425,5 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .save-feedback[data-state="pending"]::before { margin-right: 8px; vertical-align: -2px; }
 @keyframes fox-save-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .button.is-saving::before, .save-feedback[data-state="pending"]::before { animation: none; } }
+
+.mission-type-row { grid-template-columns: minmax(0, 1fr); margin-bottom: 18px; }

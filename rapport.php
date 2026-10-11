@@ -68,6 +68,6 @@ try {
 }
 
 header('Content-Type: application/pdf');
-header('Content-Disposition: inline; filename="foxreport-' . ($report === [] ? 'modele' : (int) $report['id']) . '.pdf"');
+header('Content-Disposition: inline; filename="' . reportPdfFilename($report) . '"');
 header('Content-Length: ' . strlen($bytes));
 echo $bytes;

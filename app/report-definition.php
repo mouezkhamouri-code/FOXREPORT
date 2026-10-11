@@ -1,6 +1,28 @@
 <?php
 declare(strict_types=1);
 
+const DEFAULT_REPORT_MISSION = 'COMPTE RENDU INSTALLATION FORMATION';
+
+function reportMissionTypes(): array
+{
+    $titles = [
+        DEFAULT_REPORT_MISSION,
+        'COMPTE RENDU INSTALLATION SEULE',
+        'COMPTE RENDU FORMATION',
+        'COMPTE RENDU SUIVI POST INSTALLATION',
+        'COMPTE RENDU PREVISITE TECHNIQUE',
+        'COMPTE RENDU PREVISITE COMMERCIALE',
+        'COMPTE RENDU ACCOMPAGNEMENT',
+    ];
+    return array_combine($titles, $titles);
+}
+
+function reportMissionTitle(mixed $stored): string
+{
+    // Old reports use the original schema default; keep their existing heading.
+    return is_string($stored) && isset(reportMissionTypes()[$stored]) ? $stored : DEFAULT_REPORT_MISSION;
+}
+
 $sections = [
     1 => 'INFORMATIONS COMMERCIALES',
     13 => 'Organisation de l’intervention',
