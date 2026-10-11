@@ -194,7 +194,7 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
         .evaluation-cards td { width: 25%; border: 0; padding: 0; }
         .evaluation-card { border: 1px solid #97C4C9; border-radius: 2mm; background: #E5F1F2; height: 19mm; padding: 1.5mm 2mm; text-align: center; }
         .evaluation-card.material-warning { background: #FFF0DA; border-color: #E7B878; color: #855018; }
-        .fields .material-warning th, .fields .material-warning td { background: #FFF0DA; color: #855018; }
+        .fields .material-warning th, .fields .material-warning td, .devices .material-warning td { background: #FFF0DA; color: #855018; }
         .evaluation-card-title { font-size: 8pt; font-weight: bold; height: 7mm; margin: 0; line-height: 1.2; }
         .evaluation-card-value { font-size: 9pt; line-height: 1.3; margin: 2mm 0 0; word-wrap: break-word; }
         .quantities th, .quantities td { padding: 2mm 3mm; }
@@ -259,7 +259,8 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
                     $value = $statuses[$value] ?? $value;
                 }
                 $materialWarning = $key === 'hardware_installation' && (in_array($report[$key] ?? '', ['partial', 'not_done'], true)
-                    || in_array($report['all_material_installed'] ?? null, [0, '0'], true));
+                    || in_array($report['all_material_installed'] ?? null, [0, '0'], true)
+                    || array_filter($devices, static fn(array $device): bool => ($device['state'] ?? '') === 'not_installed') !== []);
                 $html .= '<td><div class="evaluation-card' . ($materialWarning ? ' material-warning' : '') . '"><div class="evaluation-card-title">' . pdfEscape($title)
                     . '</div><div class="evaluation-card-value">'
                     . ($value !== '' ? pdfEscape($value) : '<span class="placeholder">À renseigner</span>')
@@ -359,13 +360,13 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
             }
             foreach ($matching as $device) {
                 $comment = (string) ($device['comment'] ?? '');
-                $html .= '<tr><td>'
+                $html .= '<tr' . (($device['state'] ?? '') === 'not_installed' ? ' class="material-warning"' : '') . '><td>'
                     . pdfEscape($deviceCategories[$device['category']] ?? $device['category']) . '<br>'
                     . pdfEscape(trim(($device['brand'] ?? '') . ' ' . ($device['model'] ?? ''))) . '</td><td>'
                     . pdfEscape((string) ($device['serial_number'] ?? '')) . '<br>'
                     . pdfEscape((string) ($device['mac_address'] ?? '')) . '</td><td>'
                     . pdfEscape((string) ($device['location'] ?? '')) . '<br>'
-                    . pdfEscape(['installed' => 'Installé', 'configured' => 'Configuré', 'already_present' => 'Déjà présent'][$device['state']] ?? '')
+                    . pdfEscape(['installed' => 'Installé', 'configured' => 'Configuré', 'already_present' => 'Déjà présent', 'not_installed' => 'Non installé'][$device['state']] ?? '')
                     . (trim($comment) !== '' ? '<div class="device-comment">' . nl2br(pdfEscape($comment)) . '</div>' : '')
                     . '</td></tr>';
             }

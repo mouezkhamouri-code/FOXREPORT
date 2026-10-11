@@ -41,6 +41,7 @@
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'device-summary-card';
+            button.classList.toggle('is-material-warning', control(row, 'state').value === 'not_installed');
             const category = control(row, 'category');
             const title = document.createElement('strong');
             title.textContent = category.selectedOptions[0]?.textContent || 'Matériel';
@@ -72,6 +73,11 @@
             input.name = key;
             input.value = row ? control(row, key).value : source.value;
             input.disabled = !isEditable();
+            if (key === 'state') {
+                const updateStateColor = () => input.classList.toggle('is-material-warning', input.value === 'not_installed');
+                input.addEventListener('change', updateStateColor);
+                updateStateColor();
+            }
             const label = document.createElement('label');
             label.className = 'field';
             const caption = document.createElement('span');

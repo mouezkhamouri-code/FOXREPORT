@@ -427,3 +427,5 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 @media (prefers-reduced-motion: reduce) { .button.is-saving::before, .save-feedback[data-state="pending"]::before { animation: none; } }
 
 .mission-type-row { grid-template-columns: minmax(0, 1fr); margin-bottom: 18px; }
+
+.device-table select.is-material-warning, .device-editor-fields select.is-material-warning, .device-summary-card.is-material-warning, .asset-card.is-material-warning { background: #FFF0DA; border-color: #E7B878; color: #855018; }

@@ -8,6 +8,7 @@
         document.querySelectorAll('.report-form .field input, .report-form .field textarea, .report-form .field select, .report-form .device-table input, .report-form .device-table select').forEach(control => {
             const editable = !control.readOnly && !['hidden', 'checkbox', 'radio', 'file', 'button', 'submit'].includes(control.type);
             control.classList.toggle('is-empty', editable && control.value.trim() === '');
+            control.classList.toggle('is-material-warning', /^devices\[\d+\]\[state\]$/.test(control.name) && control.value === 'not_installed');
         });
     }
     updateEmptyFields();
@@ -340,6 +341,7 @@
                 const inputs = row.querySelectorAll('input');
                 const card = document.createElement('article');
                 card.className = 'asset-card';
+                card.classList.toggle('is-material-warning', row.querySelector('[name$="[state]"]')?.value === 'not_installed');
                 const title = document.createElement('strong');
                 title.textContent = deviceLabels.get(categorySelect.value) || categorySelect.value;
                 card.append(title);
@@ -347,7 +349,7 @@
                 const labels = ['Marque', 'Modèle', 'N° série', 'MAC', 'Emplacement', 'État', 'Commentaire'];
                 fieldNames.forEach((field, index) => {
                     const control = row.querySelector(`[name$="[${field}]"]`);
-                    const value = control?.value || (field === 'state' ? control?.selectedOptions[0]?.textContent : '');
+                    const value = field === 'state' ? control?.selectedOptions[0]?.textContent : control?.value;
                     if (!value) return;
                     const detail = document.createElement('p');
                     detail.textContent = `${labels[index]} : ${value}`;

@@ -75,7 +75,7 @@ CREATE TABLE IF NOT EXISTS foxreport_devices (
     serial_number VARCHAR(160) NOT NULL DEFAULT '',
     mac_address VARCHAR(32) NOT NULL DEFAULT '',
     location VARCHAR(190) NOT NULL DEFAULT '',
-    state ENUM('installed', 'configured', 'already_present') NOT NULL DEFAULT 'installed',
+    state ENUM('installed', 'configured', 'already_present', 'not_installed') NOT NULL DEFAULT 'installed',
     comment VARCHAR(500) NOT NULL DEFAULT '',
     decoded_password VARCHAR(500) NOT NULL DEFAULT '',
     PRIMARY KEY (id),

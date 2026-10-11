@@ -387,7 +387,7 @@ function loadPostedDevices(array $deviceCategories, array &$errors): array
             $errors[] = 'Une adresse MAC est invalide.';
         }
         $state = $row['state'] ?? '';
-        if (!is_string($state) || !in_array($state, ['installed', 'configured', 'already_present'], true)) {
+        if (!is_string($state) || !in_array($state, ['installed', 'configured', 'already_present', 'not_installed'], true)) {
             $errors[] = 'Un état de matériel est invalide.';
             $state = 'installed';
         }
@@ -1284,7 +1284,7 @@ try {
                             <tr class="device-row">
                                 <td><select name="devices[<?= (int) $index ?>][category]" aria-label="Catégorie"><?php foreach ($deviceCategories as $key => $label): ?><option value="<?= h($key) ?>"<?= ($device['category'] ?? '') === $key ? ' selected' : '' ?>><?= h($label) ?></option><?php endforeach; ?></select></td>
                                 <?php foreach (['brand' => 'Marque', 'model' => 'Modèle', 'serial_number' => 'N° série', 'mac_address' => 'MAC', 'location' => 'Emplacement'] as $field => $label): ?><td><input name="devices[<?= (int) $index ?>][<?= h($field) ?>]" value="<?= h((string) ($device[$field] ?? '')) ?>" aria-label="<?= h($label) ?>" maxlength="<?= $field === 'model' ? '160' : '190' ?>"></td><?php endforeach; ?>
-                                <td><select name="devices[<?= (int) $index ?>][state]" aria-label="État"><option value="installed"<?= ($device['state'] ?? '') === 'installed' ? ' selected' : '' ?>>Installé</option><option value="configured"<?= ($device['state'] ?? '') === 'configured' ? ' selected' : '' ?>>Configuré</option><option value="already_present"<?= ($device['state'] ?? '') === 'already_present' ? ' selected' : '' ?>>Déjà présent</option></select></td>
+                                <td><select name="devices[<?= (int) $index ?>][state]" aria-label="État"><option value="installed"<?= ($device['state'] ?? '') === 'installed' ? ' selected' : '' ?>>Installé</option><option value="configured"<?= ($device['state'] ?? '') === 'configured' ? ' selected' : '' ?>>Configuré</option><option value="already_present"<?= ($device['state'] ?? '') === 'already_present' ? ' selected' : '' ?>>Déjà présent</option><option value="not_installed"<?= ($device['state'] ?? '') === 'not_installed' ? ' selected' : '' ?>>Non installé</option></select></td>
                                 <td><input name="devices[<?= (int) $index ?>][comment]" value="<?= h((string) ($device['comment'] ?? '')) ?>" aria-label="Commentaire" maxlength="500"></td>
                                 <td><input type="password" name="devices[<?= (int) $index ?>][decoded_password]" value="<?= h((string) ($device['decoded_password'] ?? '')) ?>" aria-label="Mot de passe décodé (hors PDF)" maxlength="500" autocomplete="off"></td>
                                 <td><button type="button" class="icon-button remove-device" aria-label="Retirer cet appareil">×</button></td>
@@ -1297,7 +1297,7 @@ try {
                         <td><input data-device-field="brand" aria-label="Marque" maxlength="120"></td><td><input data-device-field="model" aria-label="Modèle" maxlength="160"></td>
                         <td><input data-device-field="serial_number" aria-label="N° série" maxlength="160"></td><td><input data-device-field="mac_address" aria-label="MAC" maxlength="32"></td>
                         <td><input data-device-field="location" aria-label="Emplacement" maxlength="190"></td>
-                        <td><select data-device-field="state" aria-label="État"><option value="installed">Installé</option><option value="configured">Configuré</option><option value="already_present">Déjà présent</option></select></td>
+                        <td><select data-device-field="state" aria-label="État"><option value="installed">Installé</option><option value="configured">Configuré</option><option value="already_present">Déjà présent</option><option value="not_installed">Non installé</option></select></td>
                         <td><input data-device-field="comment" aria-label="Commentaire" maxlength="500"></td><td><input type="password" data-device-field="decoded_password" aria-label="Mot de passe décodé (hors PDF)" maxlength="500" autocomplete="off"></td><td><button type="button" class="icon-button remove-device" aria-label="Retirer cet appareil">×</button></td>
                     </tr></template>
                     <button type="button" class="button button-secondary add-device" id="add-device">＋ Ajouter un appareil</button>
