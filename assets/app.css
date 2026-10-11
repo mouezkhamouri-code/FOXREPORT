@@ -274,6 +274,7 @@ body.pwa-standalone #local-sync-status[role="status"] { display: none; }
 .catalogue-results { max-height: 220px; overflow-y: auto; margin: 8px 0; }
 .catalogue-option { display: block; width: 100%; min-height: 44px; padding: 10px; border: 0; border-bottom: 1px solid var(--line); background: var(--accent-soft); color: var(--ink); text-align: left; font-size: 16px; cursor: pointer; overflow-wrap: anywhere; }
 .catalogue-new { width: 100%; min-height: 44px; }
+.catalogue-manage { display: flex; justify-content: center; width: 100%; min-height: 44px; margin-top: 8px; }
 .catalogue-create { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .catalogue-error { color: #A12D39; font-size: 14px; }
 .device-table .catalogue-trigger { font-size: 13px; min-width: 135px; }

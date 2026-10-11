@@ -146,6 +146,7 @@
                     <input class="catalogue-search" type="search" placeholder="Rechercher…" aria-label="Rechercher">
                     <div class="catalogue-results"></div>
                     <button type="button" class="button button-secondary catalogue-new"></button>
+                    ${kind === 'brand' ? '<a class="button button-secondary catalogue-manage" href="device-brands.php" target="_blank" rel="noopener">Gérer les marques</a>' : ''}
                     <div class="catalogue-create" hidden><input type="text" aria-label="Nouveau nom">
                         <button type="button" class="button button-primary">Ajouter</button></div>
                     <p class="catalogue-error" role="alert"></p>

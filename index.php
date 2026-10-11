@@ -1279,7 +1279,6 @@ try {
                 <?php sectionStart(3, $formData, $activeSection); ?>
                     <input type="hidden" name="device_catalogue" id="device-catalogue" value="<?= h(json_encode($deviceCatalogueData, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)) ?>">
                     <p id="device-catalogue-status" class="field-note" role="status"></p>
-                    <p class="field-note"><a href="device-brands.php" target="_blank" rel="noopener">Gérer les marques</a></p>
                     <div class="form-grid form-grid-narrow inventory-topline"><?php booleanSelect($formData, 'all_material_installed', 'Tout le matériel est installé'); ?></div>
                     <div class="inventory-summary" data-inventory-summary aria-live="polite"></div>
                     <div class="table-wrap device-table-wrap"><table class="device-table">
