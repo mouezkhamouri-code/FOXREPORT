@@ -46,7 +46,7 @@ test('Real report save and sync persist section validation, preserve legacy stat
             for(const field of match[2].matchAll(/^    ([a-z_]+) .+$/gm)) {
                 const name=field[1];
                 if(name==='id') columns.push('id INTEGER PRIMARY KEY AUTOINCREMENT');
-                else if(name==='model_key' || name==='item_key' || (name==='category' && match[1]==='foxreport_device_types')) columns.push(`${name} TEXT PRIMARY KEY`);
+                else if(name==='brand_key' || name==='model_key' || name==='item_key' || (name==='category' && match[1]==='foxreport_device_types')) columns.push(`${name} TEXT PRIMARY KEY`);
                 else if(name==='request_id') columns.push('request_id TEXT PRIMARY KEY');
                 else if(name==='revision') columns.push('revision INTEGER DEFAULT 1');
                 else if(name==='intervention_uid') columns.push('intervention_uid TEXT UNIQUE');
@@ -91,7 +91,7 @@ test('Real report save and sync persist section validation, preserve legacy stat
         }
         assert.ok(ready,logs);
         const catalogueUrl=base+'?api=device-catalogue';
-        assert.deepEqual(await fetch(catalogueUrl).then(response=>response.json()),{types:[],models:[]});
+        assert.deepEqual(await fetch(catalogueUrl).then(response=>response.json()),{types:[],models:[],brands:[],deleted_brands:[]});
         const category='custom_'+require('node:crypto').createHash('sha256').update('synthetic display').digest('hex').slice(0,32);
         const catalogue={types:[{category,label:'Synthetic Display'}],models:[{
             model_key:require('node:crypto').createHash('sha256').update(category+'\nsynthetic model').digest('hex'),
@@ -299,7 +299,7 @@ test('Real report save and sync persist section validation, preserve legacy stat
         }]};
         const first=await save(1,'[6,13]',{request_id:requestId,context_notes:'Synthetic saved content',sales_rep_id:'1',sales_rep:'Spoofed name',intervention_followup:followup,postal_code:'34280',city:'LA GRANDE MOTTE',
             device_catalogue:JSON.stringify(offlineCatalogue),'devices[0][category]':offlineCategory,'devices[0][model]':'Offline Model',
-            'devices[0][serial_number]':'OFFLINE-001','devices[0][state]':'installed',
+            'devices[0][serial_number]':'OFFLINE-001','devices[0][state]':'installed','devices[0][brand]':'Synthetic Device Brand',
             payment_tpe_status:'good',payment_tap_to_pay_status:'issue','training_done[]':addedItem.key});
         assert.equal(first.status,200,`${await first.clone().text()}\n${logs}`);
         assert.equal((await first.json()).revision,2);
@@ -317,6 +317,7 @@ test('Real report save and sync persist section validation, preserve legacy stat
         const sharedAfterSync=await fetch(catalogueUrl).then(response=>response.json());
         assert.ok(sharedAfterSync.types.some(type=>type.category===offlineCategory),'Offline type is imported atomically during report sync');
         assert.ok(sharedAfterSync.models.some(model=>model.category===offlineCategory && model.name==='Offline Model'));
+        assert.ok(sharedAfterSync.brands.some(brand=>brand.name==='Synthetic Device Brand' && brand.ever_used===1),'Report synchronization persists new brands and tracks their usage');
         assert.match(saved,/<option value="1" selected>Example Alice<\/option>/);
         const missingPerson=await save(2,'[6]',{sales_rep_id:'999999'});
         assert.equal(missingPerson.status,422);

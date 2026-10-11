@@ -429,3 +429,10 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .mission-type-row { grid-template-columns: minmax(0, 1fr); margin-bottom: 18px; }
 
 .device-table select.is-material-warning, .device-editor-fields select.is-material-warning, .device-summary-card.is-material-warning, .asset-card.is-material-warning { background: #FFF0DA; border-color: #E7B878; color: #855018; }
+.brand-create { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 16px; margin: 20px 0; }
+.brand-create .field { flex: 1; min-width: 180px; margin: 0; }
+.brand-management-list { display: grid; gap: 12px; }
+.brand-management-item { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; padding: 16px; background: #fff; border: 1px solid var(--line); border-radius: 12px; }
+.brand-management-item.is-archived { background: #F4F6F7; }
+.brand-management-item p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+.brand-management-actions, .brand-delete-form { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }

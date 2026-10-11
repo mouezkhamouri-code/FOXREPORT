@@ -228,3 +228,7 @@ Avant production, testez sur de vrais Android/Chrome et iPhone/Safari : connexio
 ### État du matériel : Non installé (1.15)
 
 Avant de déployer la version 1.15, exécuter `database/migrations/014-device-not-installed.sql` sur la base dédiée FoxReport. Cette migration ajoute `not_installed` aux états autorisés sans modifier les données existantes. Mettre ensuite la PWA à jour pour récupérer le nouveau choix.
+
+### Catalogue des marques (1.17)
+
+Exécuter `database/migrations/015-device-brands.sql` sur la base FoxReport avant de déployer, puis mettre la PWA à jour. Les marques existantes sont reprises et marquées comme déjà utilisées. La saisie d’une nouvelle marque alimente le catalogue partagé, y compris à la synchronisation des brouillons hors ligne. « Gérer les marques » est accessible depuis la liste du matériel et les paramètres du rapport. Archivage et désarchivage conservent les anciens rapports ; la suppression définitive est réservée aux marques jamais utilisées. Les anciens catalogues hors ligne ne peuvent ni réactiver une marque archivée ni recréer une marque supprimée.

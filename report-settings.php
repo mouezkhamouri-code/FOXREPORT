@@ -39,7 +39,7 @@ try {
 <!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Paramètres du rapport · FoxReport</title><link rel="stylesheet" href="<?= brandingEscape(foxAsset('assets/app.css')) ?>"></head>
 <body><header class="topbar"><a class="brand" href="index.php">FoxReport</a><a class="button button-secondary" href="index.php">Rapports</a></header>
-<main class="page-shell"><h1>Paramètres du rapport</h1>
+<main class="page-shell"><h1>Paramètres du rapport</h1><p><a class="button button-secondary" href="device-brands.php">Gérer les marques de matériel</a></p>
 <?php if ($error !== ''): ?><p class="alert alert-error" role="alert"><?= brandingEscape($error) ?></p><?php endif; ?>
 <?php if (isset($_GET['saved'])): ?><p role="status">Logo du rapport enregistré.</p><?php endif; ?>
 <section class="panel editor-footer"><h2>Logo commun aux rapports</h2>

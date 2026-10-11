@@ -62,7 +62,7 @@ try {
     $deviceCategories += deviceCatalogueCategories($deviceCatalogueData);
 } catch (PDOException $exception) {
     error_log('FoxReport device catalogue unavailable; SQLSTATE ' . $exception->getCode());
-    $deviceCatalogueError = 'Catalogue matériel indisponible : appliquez la migration database/migrations/009-device-catalogue.sql après sauvegarde.';
+    $deviceCatalogueError = 'Catalogue matériel indisponible : vérifiez les migrations 009-device-catalogue.sql et 015-device-brands.sql dans database/migrations après sauvegarde.';
 }
 if ($apiRequest && ($_GET['api'] ?? '') === 'device-catalogue') {
     if ($deviceCatalogueError !== null) syncJson(['error'=>$deviceCatalogueError], 503);
@@ -521,6 +521,9 @@ function loadUploads(array $sections, array &$errors): array
 function saveReport(PDO $pdo, int $reportId, array $data, array $devices, array $uploads, string $status, array $photoState): void
 {
     requireDeviceStateSupport($pdo, $devices);
+    foreach ($devices as $device) {
+        if (trim($device['brand']) !== '') ensureDeviceBrand($pdo, $device['brand'], true);
+    }
     $data['training_topics'] = encodeTrainingChecklist($data['training_topics']);
     $updateFields = array_keys($data);
     $assignments = array_map(static fn(string $field): string => '`' . $field . '` = :' . $field, $updateFields);
@@ -1276,6 +1279,7 @@ try {
                 <?php sectionStart(3, $formData, $activeSection); ?>
                     <input type="hidden" name="device_catalogue" id="device-catalogue" value="<?= h(json_encode($deviceCatalogueData, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)) ?>">
                     <p id="device-catalogue-status" class="field-note" role="status"></p>
+                    <p class="field-note"><a href="device-brands.php" target="_blank" rel="noopener">Gérer les marques</a></p>
                     <div class="form-grid form-grid-narrow inventory-topline"><?php booleanSelect($formData, 'all_material_installed', 'Tout le matériel est installé'); ?></div>
                     <div class="inventory-summary" data-inventory-summary aria-live="polite"></div>
                     <div class="table-wrap device-table-wrap"><table class="device-table">

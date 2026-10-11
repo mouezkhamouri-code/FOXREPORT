@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const esbuild = require('esbuild');
 const crypto = require('node:crypto');
-const RELEASE_VERSION = '1.16';
+const RELEASE_VERSION = '1.17';
 
 async function build() {
     await esbuild.build({
@@ -31,7 +31,7 @@ async function build() {
         if (!response.ok) throw new Error(`OCR language download failed: ${response.status}`);
         fs.writeFileSync(language, Buffer.from(await response.arrayBuffer()));
     }
-    const files = ['offline.html','manifest.webmanifest','index.php','rapport.php','auth.php','salespeople.php','report-settings.php','scripts/build.cjs'];
+    const files = ['offline.html','manifest.webmanifest','index.php','rapport.php','auth.php','salespeople.php','report-settings.php','device-brands.php','scripts/build.cjs'];
     function addAssets(directory) {
         for (const entry of fs.readdirSync(directory,{withFileTypes:true})) {
             const filename = path.join(directory,entry.name);

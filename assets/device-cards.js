@@ -87,7 +87,7 @@
         });
         const category = fields.querySelector('[name="category"]');
         if (!row && window.FoxDeviceCatalogue) category.value = '';
-        window.FoxDeviceCatalogue?.mount(category, fields.querySelector('[name="model"]'));
+        window.FoxDeviceCatalogue?.mount(category, fields.querySelector('[name="model"]'), fields.querySelector('[name="brand"]'));
         save.hidden = !isEditable();
         remove.hidden = !row || !isEditable();
         dialog.showModal();

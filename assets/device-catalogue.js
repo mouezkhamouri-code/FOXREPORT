@@ -7,7 +7,7 @@
     const status = document.querySelector('#device-catalogue-status');
     const user = document.body.dataset.user;
     const cacheKey = `device-catalogue:${user}`;
-    let data = {types: [], models: []};
+    let data = {types: [], models: [], brands: [], deleted_brands: []};
     let caching = Promise.resolve();
     let publishing;
     const pickers = new Set();
@@ -24,10 +24,21 @@
             if (typeof model.model_key !== 'string' || typeof model.category !== 'string' || typeof model.name !== 'string') throw new Error('Modèle de matériel illisible.');
             if (!models.has(model.model_key)) models.set(model.model_key, model);
         });
+        const deleted = new Set([...data.deleted_brands, ...(incoming.deleted_brands || [])]);
+        const brands = new Map(data.brands.map(brand => [brand.brand_key, brand]));
+        for (const brand of incoming.brands || []) {
+            if (typeof brand.brand_key !== 'string' || typeof brand.name !== 'string') throw new Error('Marque illisible.');
+            const previous = brands.get(brand.brand_key);
+            if (!previous || Number(brand.revision || 0) > Number(previous.revision || 0)) brands.set(brand.brand_key, brand);
+        }
+        for (const key of deleted) brands.delete(key);
+        if (brands.size > 1000) throw new Error('Limite de 1 000 marques atteinte.');
         if (types.size > 500 || models.size > 2000) throw new Error('Limite du catalogue atteinte (500 types, 2 000 modèles).');
         data = {
             types: [...types.values()].sort((a, b) => a.label.localeCompare(b.label, 'fr')),
             models: [...models.values()].sort((a, b) => a.name.localeCompare(b.name, 'fr')),
+            brands: [...brands.values()].sort((a, b) => a.name.localeCompare(b.name, 'fr')),
+            deleted_brands: [...deleted],
         };
     }
     function populate(select) {
@@ -94,8 +105,19 @@
     }
     async function addEntry(kind, name, category) {
         name = name.trim();
-        const max = kind === 'type' ? 120 : 160;
+        const max = kind === 'model' ? 160 : 120;
         if (!name || new TextEncoder().encode(name).length > max) throw new Error(`Indiquez un nom de ${max} octets maximum.`);
+        if (kind === 'brand') {
+            const key = await hash(name.toLowerCase());
+            if (data.deleted_brands.includes(key)) throw new Error('Cette marque a été supprimée. Choisissez une référence valide.');
+            const existing = data.brands.find(brand => brand.brand_key === key);
+            if (existing?.archived) throw new Error('Cette marque est archivée. Réactivez-la dans « Gérer les marques ».');
+            if (existing) return existing.name;
+            merge({types: [], models: [], brands: [{brand_key: key, name, archived: 0, revision: 0}]});
+            update(); await cache();
+            form.dispatchEvent(new Event('fox-change'));
+            return name;
+        }
         if (kind === 'type') {
             const existing = data.types.find(type => type.label.toLowerCase() === name.toLowerCase());
             if (existing) return existing.category;
@@ -112,9 +134,10 @@
         form.dispatchEvent(new Event('fox-change'));
         return data.models.find(model => model.model_key === key).name;
     }
-    function mount(category, model) {
+    function mount(category, model, brand) {
         const components = [];
-        for (const [kind, control] of [['type', category], ['model', model]]) {
+        for (const [kind, control] of [['type', category], ['model', model], ['brand', brand]]) {
+            if (!control) continue;
             control.hidden = true;
             const root = document.createElement('div');
             root.className = 'catalogue-picker';
@@ -134,12 +157,13 @@
             const results = root.querySelector('.catalogue-results');
             const create = root.querySelector('.catalogue-create');
             const name = create.querySelector('input');
-            name.maxLength = kind === 'type' ? 120 : 160;
+            name.maxLength = kind === 'model' ? 160 : 120;
             const error = root.querySelector('.catalogue-error');
             const newButton = root.querySelector('.catalogue-new');
-            newButton.textContent = kind === 'type' ? '+ Nouveau type de matériel' : '+ Nouveau modèle pour ce type';
+            newButton.textContent = kind === 'type' ? '+ Nouveau type de matériel' : kind === 'brand' ? '+ Nouvelle marque' : '+ Nouveau modèle pour ce type';
             const options = () => kind === 'type'
                 ? data.types.map(type => ({value: type.category, label: type.label}))
+                : kind === 'brand' ? data.brands.filter(item => !item.archived).map(item => ({value: item.name, label: item.name}))
                 : data.models.filter(item => item.category === category.value).map(item => ({value: item.name, label: item.name}));
             function toggle(open) {
                 panel.hidden = !open;
@@ -158,7 +182,7 @@
             function render() {
                 results.replaceChildren();
                 const choices = options();
-                if (kind === 'model') choices.unshift({value: '', label: 'Sans modèle'});
+                if (kind !== 'type') choices.unshift({value: '', label: kind === 'brand' ? 'Sans marque' : 'Sans modèle'});
                 choices.filter(item => item.label.toLowerCase().includes(search.value.toLowerCase())).forEach(item => {
                     const button = document.createElement('button');
                     button.type = 'button';
@@ -177,8 +201,8 @@
                 if (kind === 'type') populate(control);
                 trigger.disabled = control.disabled;
                 trigger.textContent = (kind === 'type' ? data.types.find(item => item.category === control.value)?.label : control.value)
-                    || (kind === 'type' ? 'Choisir un type de matériel' : 'Choisir un modèle');
-                trigger.setAttribute('aria-label', `${kind === 'type' ? 'Type de matériel' : 'Modèle'} : ${trigger.textContent}`);
+                    || (kind === 'type' ? 'Choisir un type de matériel' : kind === 'brand' ? 'Choisir une marque' : 'Choisir un modèle');
+                trigger.setAttribute('aria-label', `${kind === 'type' ? 'Type de matériel' : kind === 'brand' ? 'Marque' : 'Modèle'} : ${trigger.textContent}`);
                 render();
             }
             trigger.addEventListener('click', () => toggle(panel.hidden));
@@ -216,7 +240,7 @@
         document.querySelectorAll('#device-rows .device-row').forEach(row => {
             if (row.dataset.cataloguePicker) return;
             row.dataset.cataloguePicker = 'true';
-            mount(row.querySelector('[name$="[category]"]'), row.querySelector('[name$="[model]"]'));
+            mount(row.querySelector('[name$="[category]"]'), row.querySelector('[name$="[model]"]'), row.querySelector('[name$="[brand]"]'));
         });
     }
     async function restore() {
@@ -240,5 +264,6 @@
     form.addEventListener('fox-sections-restored', () => restore().catch(error => message(`Catalogue : ${error.message}`)));
     form.addEventListener('fox-inventory-restored', decorateRows);
     form.addEventListener('fox-change', decorateRows);
+    window.addEventListener('focus', () => { if (navigator.onLine) request().then(incoming => { merge(incoming); update(); return cache(); }).catch(error => message(`Catalogue : ${error.message}`)); });
     window.addEventListener('online', () => publish().catch(error => message(`Partage du catalogue : ${error.message}`)));
 })();
