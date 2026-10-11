@@ -30,3 +30,14 @@ function syncJson(array $data, int $status = 200): never
     echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
     exit;
 }
+
+function requireDeviceStateSupport(PDO $pdo, array $devices): void
+{
+    if (!array_filter($devices, static fn(array $device): bool => ($device['state'] ?? '') === 'not_installed')) return;
+    if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) !== 'mysql') return;
+    $column = $pdo->query("SHOW COLUMNS FROM foxreport_devices WHERE Field = 'state'")->fetch(PDO::FETCH_ASSOC);
+    $type = strtolower((string) ($column['Type'] ?? ''));
+    if ($type === '' || (str_starts_with($type, 'enum(') && !str_contains($type, "'not_installed'"))) {
+        throw new RuntimeException('La base ne permet pas encore l’état « Non installé ». Exécutez database/migrations/014-device-not-installed.sql sur la base FoxReport, puis réessayez. Vos saisies sont conservées.');
+    }
+}

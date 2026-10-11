@@ -520,6 +520,7 @@ function loadUploads(array $sections, array &$errors): array
 
 function saveReport(PDO $pdo, int $reportId, array $data, array $devices, array $uploads, string $status, array $photoState): void
 {
+    requireDeviceStateSupport($pdo, $devices);
     $data['training_topics'] = encodeTrainingChecklist($data['training_topics']);
     $updateFields = array_keys($data);
     $assignments = array_map(static fn(string $field): string => '`' . $field . '` = :' . $field, $updateFields);
