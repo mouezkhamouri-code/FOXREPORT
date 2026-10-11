@@ -32,9 +32,9 @@ function reportPdfFilename(array $report): string
     if (!$date || $date->format('Y-m-d') !== $dateValue) {
         $date = new DateTimeImmutable('now', new DateTimeZone('Europe/Paris'));
     }
-    return 'LightSpeed_' . $safePart($mission, 'mission') . '_'
+    return strtoupper('LightSpeed_whitefox_' . $safePart($mission, 'mission') . '_'
         . $safePart((string) ($report['establishment'] ?? ''), 'restaurant') . '_'
-        . $date->format('m_Y') . '.pdf';
+        . $date->format('m_Y') . '.pdf');
 }
 
 function pdfPhotoHtml(array $photo, bool $cover = false, bool $square = false): string

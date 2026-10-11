@@ -33,7 +33,7 @@ foreach ([null, '', 'Installation et formation Lightspeed'] as $legacy) {
 echo "PASS: Seven mission inputs and PDF headers, legacy compatibility and invalid input rejection.\n";
 
 $filename = reportPdfFilename(['report_type'=>'COMPTE RENDU ACCOMPAGNEMENT', 'establishment'=>"Café de l'été / Toulouse", 'report_date'=>'2026-10-08']);
-if ($filename !== 'LightSpeed_accompagnement_Cafe_de_l_ete_Toulouse_10_2026.pdf') throw new RuntimeException('Unexpected filename: ' . $filename);
+if ($filename !== 'LIGHTSPEED_WHITEFOX_ACCOMPAGNEMENT_CAFE_DE_L_ETE_TOULOUSE_10_2026.PDF') throw new RuntimeException('Unexpected filename: ' . $filename);
 $unsafe = reportPdfFilename(['establishment'=>"Bad\r\n\"/../Name", 'report_date'=>'2026-01-05']);
-if (!preg_match('/^LightSpeed_[A-Za-z0-9_]+_01_2026\.pdf$/', $unsafe)) throw new RuntimeException('Unsafe PDF filename.');
+if (!preg_match('/^LIGHTSPEED_WHITEFOX_[A-Z0-9_]+_01_2026\.PDF$/', $unsafe)) throw new RuntimeException('Unsafe PDF filename.');
 echo "PASS: PDF filenames use mission, sanitized restaurant and intervention month/year.\n";
