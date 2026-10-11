@@ -193,6 +193,8 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
         .evaluation-cards { border-collapse: separate; border-spacing: 2mm 0; margin: 0 -2mm 3mm; width: 100%; page-break-inside: avoid; }
         .evaluation-cards td { width: 25%; border: 0; padding: 0; }
         .evaluation-card { border: 1px solid #97C4C9; border-radius: 2mm; background: #E5F1F2; height: 19mm; padding: 1.5mm 2mm; text-align: center; }
+        .evaluation-card.material-warning { background: #FFF0DA; border-color: #E7B878; color: #855018; }
+        .fields .material-warning th, .fields .material-warning td { background: #FFF0DA; color: #855018; }
         .evaluation-card-title { font-size: 8pt; font-weight: bold; height: 7mm; margin: 0; line-height: 1.2; }
         .evaluation-card-value { font-size: 9pt; line-height: 1.3; margin: 2mm 0 0; word-wrap: break-word; }
         .quantities th, .quantities td { padding: 2mm 3mm; }
@@ -256,7 +258,9 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
                 } elseif ($value !== '') {
                     $value = $statuses[$value] ?? $value;
                 }
-                $html .= '<td><div class="evaluation-card"><div class="evaluation-card-title">' . pdfEscape($title)
+                $materialWarning = $key === 'hardware_installation' && (in_array($report[$key] ?? '', ['partial', 'not_done'], true)
+                    || in_array($report['all_material_installed'] ?? null, [0, '0'], true));
+                $html .= '<td><div class="evaluation-card' . ($materialWarning ? ' material-warning' : '') . '"><div class="evaluation-card-title">' . pdfEscape($title)
                     . '</div><div class="evaluation-card-value">'
                     . ($value !== '' ? pdfEscape($value) : '<span class="placeholder">À renseigner</span>')
                     . '</div></div></td>';
@@ -317,7 +321,8 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
             } elseif (str_ends_with($key, '_status') || in_array($key, ['hardware_installation', 'skills_transfer'], true)) {
                 $value = $number === 8 && $value === 'not_applicable' ? 'Pas de terminaux' : ($statuses[$value] ?? $value);
             }
-            $rows .= '<tr><th>' . pdfEscape($fieldLabel) . '</th><td>'
+            $materialWarning = $key === 'all_material_installed' && in_array($report[$key] ?? null, [0, '0'], true);
+            $rows .= '<tr' . ($materialWarning ? ' class="material-warning"' : '') . '><th>' . pdfEscape($fieldLabel) . '</th><td>'
                 . ((string) $value !== '' ? nl2br(pdfEscape((string) $value)) : '<span class="placeholder">À renseigner</span>') . '</td></tr>';
         }
         if ($rows !== '') $html .= '<table class="fields">' . $rows . '</table>';

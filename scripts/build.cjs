@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const esbuild = require('esbuild');
 const crypto = require('node:crypto');
-const RELEASE_VERSION = '1.13';
+const RELEASE_VERSION = '1.14';
 
 async function build() {
     await esbuild.build({
