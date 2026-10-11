@@ -290,7 +290,7 @@ function loadPostedReport(array &$errors): array
     $data['internet_present'] = nullableBoolPost('internet_present', $errors);
     $data['nebula_controller_configured'] = nullableBoolPost('nebula_controller_configured', $errors);
     $data['switch_present'] = nullableBoolPost('switch_present', $errors);
-    $data['network_type'] = enumPost('network_type', ['', 'professional_patch_panel', 'makeshift_patch_panel', 'loose_cables'], $errors);
+    $data['network_type'] = enumPost('network_type', ['', 'professional_patch_panel', 'makeshift_patch_panel', 'loose_cables', 'missing_network_cables', 'no_ethernet'], $errors);
     $statusOptions = ['', 'good', 'limited', 'issue', 'not_applicable'];
     $data['payment_tpe_status'] = enumPost('payment_tpe_status', $statusOptions, $errors);
     $data['payment_tap_to_pay_status'] = enumPost('payment_tap_to_pay_status', $statusOptions, $errors);
@@ -1324,6 +1324,8 @@ try {
                             'professional_patch_panel' => 'Professionnel avec baie de brassage',
                             'makeshift_patch_panel' => 'Bricolé avec baie de brassage',
                             'loose_cables' => 'Câbles volants',
+                            'missing_network_cables' => 'Câbles réseau manquants',
+                            'no_ethernet' => 'Pas de réseau Ethernet',
                         ]); ?>
                         <?php booleanSelect($formData, 'nebula_controller_configured', 'Nebula / contrôleur configuré'); ?>
                         <?php booleanSelect($formData, 'internet_present', 'Connexion Internet présente'); ?>

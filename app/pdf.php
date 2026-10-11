@@ -322,6 +322,8 @@ function reportPdfHtml(array $report, array $devices, array $photos, ?string $ma
                     'professional_patch_panel' => 'Professionnel avec baie de brassage',
                     'makeshift_patch_panel' => 'Bricolé avec baie de brassage',
                     'loose_cables' => 'Câbles volants',
+                    'missing_network_cables' => 'Câbles réseau manquants',
+                    'no_ethernet' => 'Pas de réseau Ethernet',
                 ][$value] ?? $value;
             } elseif (in_array($key, $booleanFields, true)) {
                 $value = $value === '' || $value === null ? '' : ((int) $value === 1 ? 'Oui' : 'Non');
